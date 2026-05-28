@@ -125,6 +125,58 @@ Scenarios let you trigger a specific failure story during a demo with one click 
 
 ---
 
+## Live Adapter — REST API Reality
+
+Researched from Broadcom TechDocs + community articles on 2026-05-28. The AutoSys REST API has more nuance than a naïve "one endpoint per tool" mapping.
+
+**Base URL:** `https://{host}:9443/AEWS/` (HTTPS only; production typically has a real CA cert, dev installs are self-signed)
+
+**Auth:** Basic Auth (`Authorization: Basic <base64(user:pass)>`) is universal. The Swagger spec also mentions `X-AUTH-TOKEN` and enterprise JAAS+CA EEM, but every concrete example uses Basic. Default install user is `ejmcommander`.
+
+**Two surfaces in the same Web Services component:**
+
+| Surface | Purpose | Examples |
+|---|---|---|
+| `/AEWS/job/...`, `/AEWS/jil/...` (older, pre-Swagger) | **Reads** — job details, JIL definitions, filtered listing | `GET /AEWS/job/etl_load_facts`, `GET /AEWS/job?filter=boxname==etl_box_daily`, `GET /AEWS/jil/job?name=etl_load_facts` |
+| `/AEWS/api/...` (Swagger-documented since 12.x) | **Writes** — event triggers (start, hold, kill, etc.), calendar mgmt, global vars, `command/run` | `POST /AEWS/api/event/force-start-job` with `{"jobName":"X","comment":"..."}` |
+
+**Status codes are numeric** in REST responses. Typical mapping (verify against the customer's exact AutoSys version before shipping — values have shifted between releases):
+
+```
+1=RUNNING   4=SUCCESS    5=FAILURE   7=TERMINATED
+8=STARTING  9=INACTIVE   11=QUE_WAIT 12=ON_NOEXEC
+13=ON_HOLD  14=ON_ICE
+```
+
+The live adapter must translate these to the same string statuses the mock adapter emits, so the agent prompt/system behaviour is identical.
+
+### Tool-to-endpoint mapping
+
+| Agent tool | Live endpoint | Notes |
+|---|---|---|
+| `get_job_status(name)` | `GET /AEWS/job/{name}` | Translate numeric `status` field |
+| `list_jobs(filter)` | `GET /AEWS/job` (optional `?filter=...`) | Supports filter expressions; numeric statuses again |
+| `get_dependencies(name)` | `GET /AEWS/jil/job?name={name}` | Returns JIL text; parse `condition:` expression (`s(...)`, `f(...)`, `AND`/`OR`/`NOT`) into upstream. Downstream requires walking other jobs' conditions. Small parser needed. |
+| `get_job_history(name)` | **No native endpoint.** `POST /AEWS/api/command/run` with `autorep -j {name} -w` and parse stdout | Brittle; text-parsing risk. Acceptable for M7 v1. |
+| `get_job_log(name)` | **Not in the REST API at all.** | See "Log gap" below. |
+
+### Log gap — biggest open issue
+
+Job stdout/stderr files (`std_err_file`, `std_out_file` from JIL) live on the **remote agent host** where the job ran, not on the scheduler. The AutoSys REST API has no endpoint that returns log content.
+
+Realistic options for a customer install:
+
+| Strategy | Trade-off |
+|---|---|
+| (a) Customer points us at a log forwarder (Splunk / ELK / S3) — adapter queries that | Clean; depends entirely on the customer's logging stack |
+| (b) Indirect via `/AEWS/api/command/run` invoking `cat /var/log/...` on the scheduler | Only works if the scheduler has the log mount, and it usually doesn't (logs are on agent hosts) |
+| (c) Configured SSH jump per machine (`ssh agent01 cat /var/log/autosys/{job}.err`) | Privileged, fragile, security-sensitive |
+| (d) Disable `get_job_log` in live mode; return the JIL `std_err_file` path so operator can fetch themselves | Degraded but safe. Default for M7 v1. |
+
+Default for M7 v1: **(d)** — the tool returns the *path* with a clear "fetch this yourself" note. Strategy (a) becomes a per-customer integration.
+
+---
+
 ## What Is NOT in the Stack (deliberately)
 
 | Excluded | Reason |
@@ -192,10 +244,11 @@ No phase requires rewriting the previous one. Each adds a layer.
 
 1. **LLM strategy** – Resolved (2026-05-28): Claude API for internal dev; customer brings their own endpoint in production (Claude / Gemini / OpenAI / Azure OpenAI) via LiteLLM.
 2. **Frontend language** – React confirmed (2026-05-28) to keep room for dynamic pages: streaming chat tokens, interactive job graphs, live status updates.
-3. **AutoSys version in live mode** – which REST-capable version is the target customer on? Needed only to validate endpoint paths / auth flavor; CLI and SOAP are explicitly out of scope.
-4. **Demo scenarios** – which 2–3 failure stories should be in the mock data for the first demo?
-5. **Authentication** – API key in `.env` is fine for lab, but what is the expectation for customer delivery?
+3. **AutoSys version in live mode** – API shape verified for 12.x and 24.x (see "Live Adapter — REST API Reality" section). Specific customer version still useful for verifying the numeric status-code mapping; not blocking until first install.
+4. ~~Demo scenarios~~ – Resolved during M6 (2026-05-28): etl_failure, cascading_failure, sla_breach selectable from the header menu.
+5. **Authentication for live mode** – Basic Auth (`ejmcommander`-style service account) is the universal default. Customer install will need: (a) service account credentials, (b) decision on cert trust (real CA cert vs `verify=False`), (c) whether `X-AUTH-TOKEN` or JAAS+CA EEM is required by their security team instead of Basic.
 6. ~~PII redaction scope~~ – Resolved (2026-05-28): customer environments anonymise person names at source as a gold rule. Regex (email + phone) + field denylist is sufficient. No NER layer required.
+7. **Log retrieval strategy in live mode** – AutoSys REST API does not expose stdout/stderr content. Default plan is (d) return the JIL path and let the operator fetch themselves. Customers with Splunk/ELK/S3 log forwarding can opt into (a) by configuring `LOG_FORWARDER_URL_TEMPLATE` in env. **Confirm per customer before promising the `get_job_log` tool works in live mode.**
 
 ---
 

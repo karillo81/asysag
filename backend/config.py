@@ -13,6 +13,12 @@ _DEFAULT_DOCS_DIR = _PROJECT_ROOT / "docs"
 _DEFAULT_STATE_DIR = _BACKEND_DIR / "state"
 
 
+def _str_to_bool(v: str | None, default: bool) -> bool:
+    if v is None:
+        return default
+    return v.strip().lower() in ("1", "true", "yes", "on")
+
+
 @dataclass(frozen=True)
 class Settings:
     autosys_mode: str = os.getenv("AUTOSYS_MODE", "mock")
@@ -29,6 +35,21 @@ class Settings:
     state_dir: Path = field(
         default_factory=lambda: Path(os.getenv("STATE_DIR", str(_DEFAULT_STATE_DIR)))
     )
+
+    # Live mode — only consulted when autosys_mode == "live".
+    autosys_base_url: str | None = os.getenv("AUTOSYS_BASE_URL")
+    autosys_user: str | None = os.getenv("AUTOSYS_USER")
+    autosys_pass: str | None = os.getenv("AUTOSYS_PASS")
+    autosys_verify_tls: bool = field(
+        default_factory=lambda: _str_to_bool(os.getenv("AUTOSYS_VERIFY_TLS"), True)
+    )
+    autosys_timeout_seconds: float = float(os.getenv("AUTOSYS_TIMEOUT_SECONDS", "15"))
+    # Optional Splunk/ELK/S3 log forwarder. Template gets {job} and {stream}
+    # substituted. If unset, get_job_log returns the JIL path instead.
+    log_forwarder_url_template: str | None = os.getenv("LOG_FORWARDER_URL_TEMPLATE")
+    # Optional override for the numeric status code table; format
+    # "4=SUCCESS,5=FAILURE,..." merged on top of the defaults.
+    status_code_overrides: str | None = os.getenv("STATUS_CODE_OVERRIDES")
 
 
 settings = Settings()

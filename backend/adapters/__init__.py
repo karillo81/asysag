@@ -1,5 +1,8 @@
 from pathlib import Path
 
+from config import settings
+
+from .autosys_client import AutoSysAPIError
 from .base import AdapterError, AutoSysAdapter, JobNotFound
 from .live_adapter import LiveAdapter
 from .mock_adapter import MockAdapter
@@ -7,6 +10,7 @@ from .mock_adapter import MockAdapter
 __all__ = [
     "AdapterError",
     "AutoSysAdapter",
+    "AutoSysAPIError",
     "JobNotFound",
     "LiveAdapter",
     "MockAdapter",
@@ -20,5 +24,26 @@ def get_adapter(mode: str, mock_data_dir: Path | None = None) -> AutoSysAdapter:
             raise ValueError("mock_data_dir is required when mode='mock'")
         return MockAdapter(mock_data_dir)
     if mode == "live":
-        return LiveAdapter()
+        missing = [
+            name
+            for name, value in (
+                ("AUTOSYS_BASE_URL", settings.autosys_base_url),
+                ("AUTOSYS_USER", settings.autosys_user),
+                ("AUTOSYS_PASS", settings.autosys_pass),
+            )
+            if not value
+        ]
+        if missing:
+            raise ValueError(
+                "live mode requires: " + ", ".join(missing) + " in environment"
+            )
+        return LiveAdapter(
+            base_url=settings.autosys_base_url,
+            username=settings.autosys_user,
+            password=settings.autosys_pass,
+            verify_tls=settings.autosys_verify_tls,
+            timeout_seconds=settings.autosys_timeout_seconds,
+            log_forwarder_url_template=settings.log_forwarder_url_template,
+            status_code_overrides=settings.status_code_overrides,
+        )
     raise ValueError(f"unknown AUTOSYS_MODE: {mode!r} (expected 'mock' or 'live')")

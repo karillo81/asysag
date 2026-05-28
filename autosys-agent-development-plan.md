@@ -142,18 +142,38 @@ Each milestone leaves the system in a demonstrable state. No half-built features
 
 ## Milestone 7 – Live Adapter
 
-**Goal:** same agent, real AutoSys.
+**Goal:** same agent, real AutoSys. REST API only. CLI and SOAP paths are explicitly out of scope.
 
-Scope: REST API only. CLI and SOAP paths are explicitly out of scope per the tech-stack principle. Customers on pre-REST AutoSys are not supported targets.
+Reference: the tech-stack doc's "Live Adapter — REST API Reality" section captures the actual API surface (research completed 2026-05-28). Highlights:
 
-- `live_adapter.py` wraps HTTP calls to the AutoSys REST endpoint, auth via API token in `.env`
-- Implement against a non-production AutoSys instance
-- Run the same Milestone 4 demo script in live mode – behavior should be identical
-- Document any tool that needs different prompts/behavior between mock and live (ideally none)
+- Base URL `https://{host}:9443/AEWS/`, Basic Auth, two surfaces (`/AEWS/job/...` for reads, `/AEWS/api/...` for writes/events).
+- Status field is numeric in responses — adapter translates to the same strings the mock emits.
+- **`get_job_log` cannot be implemented straight-through** because logs are not in the REST API. See sub-task 6 below.
 
-**Done when:** flipping `AUTOSYS_MODE=live` against a real AutoSys instance produces the same agent quality as mock mode.
+### Sub-tasks (in build order)
 
-**Pre-work** (can happen any time before M7): get the REST endpoint spec for the target customer's AutoSys version, confirm auth flavor (token / Basic / OAuth), and verify the four core tool calls map cleanly to documented endpoints. If they don't, raise it as a scope question — do not invent CLI fallbacks.
+1. **HTTP client + auth.** Add `httpx` to deps. New module `adapters/autosys_client.py` with: configurable base URL, Basic Auth, optional `verify=False` for self-signed certs, env-driven timeout, response logging (request id + status only, never body to avoid PII leak in logs).
+2. **Status code translation.** Module-local mapping table (`1=RUNNING`, `4=SUCCESS`, `5=FAILURE`, `7=TERMINATED`, etc.). Single function `translate_status(numeric) -> str` used by every read endpoint.
+3. **`get_job_status`** — `GET /AEWS/job/{name}` → translate. Return 404 / `JobNotFound` mapping when AutoSys says no such job.
+4. **`list_jobs`** — `GET /AEWS/job` (with optional `?filter=` clause for `name_filter`). Cap result size; document the pagination behavior we observe.
+5. **`get_dependencies`** — `GET /AEWS/jil/job?name={name}` → parse the `condition:` expression. Small recursive-descent parser for `s(...)`, `f(...)`, `done(...)`, `AND`, `OR`, `NOT`, parentheses. Downstream side requires walking `list_jobs` and inspecting each one's condition — cache result of that walk per `list_jobs` snapshot.
+6. **`get_job_log`** — first cut returns `{"path": "<std_err_file>", "note": "logs live on the agent host; fetch via your own log system"}`. Optional second cut: if `LOG_FORWARDER_URL_TEMPLATE` env is set, substitute `{job}`/`{stream}` and fetch that URL. Document both behaviors in the adapter's docstring.
+7. **`get_job_history`** — `POST /AEWS/api/command/run` with body invoking `autorep -j {name} -w` (last 7 days). Parse the text output into the same shape the mock emits. Note: this is the brittlest tool; if customer wants more reliability, recommend exporting `autorep` output to a scheduled file we read instead.
+8. **Replay the Milestone 4 demo script in live mode.** Same conversation flow, same expected agent quality. Any tool that needs prompt changes between mock and live is a design regression — fix it.
+
+### Done when
+
+- Flipping `AUTOSYS_MODE=live` (with `AUTOSYS_HOST`, `AUTOSYS_USER`, `AUTOSYS_PASS` env vars) against a real AutoSys instance produces the same agent quality as mock mode for the etl_failure scenario.
+- `get_job_log` either returns useful content (if forwarder configured) or returns the JIL path with a clear note — the agent's reply explains the limitation in one sentence rather than failing silently.
+- README has a `Live mode` section documenting the env vars and the log-strategy choices.
+
+### Pre-work (block on customer)
+
+- Confirm customer's AutoSys version — primarily to verify the numeric status-code mapping for any non-standard values.
+- Confirm auth flavor (Basic vs X-AUTH-TOKEN vs JAAS+EEM). Basic is the default; ask if their security team requires otherwise.
+- Confirm cert posture — real CA, internal CA we can mount, or `verify=False` only.
+- Confirm log strategy choice — Splunk/ELK/S3 (a), or accept the path-only fallback (d).
+- Get a non-production AutoSys instance to test against. No production access during M7.
 
 ---
 
@@ -190,6 +210,9 @@ M3 can begin as soon as M2's API shape is locked, even if the agent itself is st
 | Scenario demos feel scripted / fragile | M6 explicitly rehearses each twice; treat the "rehearsal" as part of done |
 | Frontend creeps toward dashboard polish | Keep the "technicians not managers" principle visible in PR review |
 | Live adapter reveals tool-shape mismatches | M7 reuses M4 demo as the acceptance test, not a new script |
+| AutoSys log content not in REST API | Documented in tech-stack "Live Adapter — REST API Reality"; M7 ships with the path-only fallback (d) by default and a `LOG_FORWARDER_URL_TEMPLATE` extension point for customers with Splunk/ELK |
+| `autorep -w` text-parsing for history breaks across AutoSys versions | Snapshot test the parser against captured `autorep -w` outputs from 12.x and 24.x; if a third format appears, fail with a clear error and ask the customer to share their `autorep -w` output |
+| Numeric status-code mapping wrong for a customer's AutoSys version | Mapping table is module-local and one-line-override-able via env (`STATUS_CODE_OVERRIDES`); flag any unknown numeric code in the response with a warning log |
 
 ---
 
@@ -198,10 +221,11 @@ M3 can begin as soon as M2's API shape is locked, even if the agent itself is st
 (Mirrors tech-stack doc open questions – flagged here in priority order for the build.)
 
 1. ~~LLM for lab development~~ – Resolved (2026-05-28): Claude API for dev, customer-provided in production.
-2. **Which scenario for M4** – recommend ETL failure. Need confirmation.
-3. **AutoSys version for M7** – any REST-capable version qualifies (CLI/SOAP-only is out of scope). Specific customer version still useful for endpoint-spec pre-work; not blocking until M6 finishes.
-4. **Auth for customer delivery** – not blocking demo work; revisit before first customer install.
-5. **PII scope beyond regex** – does any customer fixture include person names embedded in free-text error logs? If yes, M2 redactor needs an NER pass too. Worth asking before M4 mock data is written.
+2. ~~Which scenario for M4~~ – Resolved during M4 (2026-05-28): etl_failure (ORA-12541) shipped. Cascading + SLA breach added in M6.
+3. ~~AutoSys version for M7 (REST surface shape)~~ – Resolved (2026-05-28): API surface researched and documented in tech-stack. **Open sub-questions for the first live install:** customer's specific AutoSys version (for numeric-code edge cases), auth flavor, cert posture, log strategy. None block work that happens before an actual live target.
+4. **Auth for customer delivery** – not blocking demo work; revisit before first customer install. Basic is the default; some security teams may require X-AUTH-TOKEN or JAAS+EEM.
+5. ~~PII scope beyond regex~~ – Resolved (2026-05-28): customer environments anonymise person names at source. Regex + denylist is sufficient.
+6. **Log retrieval strategy in live mode** – AutoSys REST has no log content endpoint. Default fallback is path-only; opt-in `LOG_FORWARDER_URL_TEMPLATE` for customers with Splunk/ELK/S3. Confirm per customer; not blocking until first live install.
 
 ---
 
@@ -216,7 +240,7 @@ M3 can begin as soon as M2's API shape is locked, even if the agent itself is st
 | M4 | 2 days |
 | M5 | 2–3 days |
 | M6 | 2 days |
-| M7 | depends on AutoSys access – 2–5 days |
+| M7 | depends on AutoSys access – 3–7 days (was 2–5 before; revised after API research surfaced the JIL parser + history text-parsing + log-strategy work) |
 
 Total to first scripted demo (M4): roughly **1 week of focused work**. Total to full demo library (M6): **~2.5 weeks**.
 
