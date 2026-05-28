@@ -1,0 +1,11 @@
+{
+  "name": "sla_breach",
+  "title": "Morning reports late (SLA breach, no failure)",
+  "description": "All jobs SUCCESS but several hours late. ETL fact load took 4 hours instead of 27 minutes (warehouse DB sluggish). Reports finished at 09:15 instead of the 06:00 SLA. Goal: agent identifies the SLA breach, compares today's duration to historical baseline, names the bottleneck.",
+  "expected_demo_path": [
+    "Operator complaint: 'finance is asking why the morning revenue email arrived at 09:15.' Ask: 'when did report_send_emails finish today?' → agent calls get_job_status; sees 09:15 completion.",
+    "Ask: 'is that normal? how does it compare to the last week?' → agent calls get_job_history; sees normal completion ~06:20, today is ~3 hours late.",
+    "Walk upstream: ask 'what slowed it down?' → agent walks back through the chain, finds etl_load_facts took 14400s (4h) vs typical 1600s (27 min).",
+    "Ask: 'why was the fact load slow?' → agent has no exact log to cite but should suggest checking the warehouse DB host (db-warehouse-prod-01.internal). No prior matching incident — agent should say so plainly rather than fabricate one."
+  ]
+}

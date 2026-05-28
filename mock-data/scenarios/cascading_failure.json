@@ -1,0 +1,11 @@
+{
+  "name": "cascading_failure",
+  "title": "Cascading failure from extract timeout",
+  "description": "etl_extract_transactions timed out against the core banking API. The entire downstream chain (dimensions → facts → validate → reports) is INACTIVE because conditions never met. Goal: agent walks upstream from a downstream complaint to find the real root cause.",
+  "expected_demo_path": [
+    "Operator complaint: 'why hasn't this morning's revenue report run?' From sidebar, click status on report_revenue_daily → INACTIVE (no recent activity).",
+    "Ask: 'why is it INACTIVE?' → agent calls get_dependencies; identifies etl_validate_daily as the unmet condition.",
+    "Walk upstream: 'what about etl_validate_daily?' → INACTIVE, depends on etl_load_facts → INACTIVE → etl_load_dimensions → INACTIVE → which requires both extracts.",
+    "Ask: 'what's the root cause?' → agent calls list_jobs (or follows the chain), finds etl_extract_transactions FAILED with connection_timeout; calls get_job_log + find_similar_incidents; cites the March 4 connection-pool resolution."
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "etl_load_facts": [
+    {"start": "2026-05-22T03:42:00Z", "end": "2026-05-22T04:08:11Z", "status": "SUCCESS", "duration_seconds": 1571, "return_code": 0, "message": null},
+    {"start": "2026-05-23T03:43:00Z", "end": "2026-05-23T04:09:30Z", "status": "SUCCESS", "duration_seconds": 1590, "return_code": 0, "message": null},
+    {"start": "2026-05-24T03:42:00Z", "end": "2026-05-24T04:08:45Z", "status": "SUCCESS", "duration_seconds": 1605, "return_code": 0, "message": null},
+    {"start": "2026-05-25T03:43:00Z", "end": "2026-05-25T04:09:18Z", "status": "SUCCESS", "duration_seconds": 1578, "return_code": 0, "message": null},
+    {"start": "2026-05-26T03:42:30Z", "end": "2026-05-26T04:09:11Z", "status": "SUCCESS", "duration_seconds": 1601, "return_code": 0, "message": null},
+    {"start": "2026-05-27T03:43:00Z", "end": "2026-05-27T04:09:55Z", "status": "SUCCESS", "duration_seconds": 1615, "return_code": 0, "message": null},
+    {"start": "2026-05-28T03:42:30Z", "end": "2026-05-28T07:42:30Z", "status": "SUCCESS", "duration_seconds": 14400, "return_code": 0, "message": "9x slower than baseline; warehouse DB latency"}
+  ],
+  "report_send_emails": [
+    {"start": "2026-05-22T06:18:00Z", "end": "2026-05-22T06:18:30Z", "status": "SUCCESS", "duration_seconds": 30, "return_code": 0, "message": null},
+    {"start": "2026-05-23T06:20:00Z", "end": "2026-05-23T06:20:35Z", "status": "SUCCESS", "duration_seconds": 35, "return_code": 0, "message": null},
+    {"start": "2026-05-24T06:19:00Z", "end": "2026-05-24T06:19:33Z", "status": "SUCCESS", "duration_seconds": 33, "return_code": 0, "message": null},
+    {"start": "2026-05-25T06:19:30Z", "end": "2026-05-25T06:20:05Z", "status": "SUCCESS", "duration_seconds": 35, "return_code": 0, "message": null},
+    {"start": "2026-05-26T06:18:30Z", "end": "2026-05-26T06:19:01Z", "status": "SUCCESS", "duration_seconds": 31, "return_code": 0, "message": null},
+    {"start": "2026-05-27T06:20:00Z", "end": "2026-05-27T06:20:34Z", "status": "SUCCESS", "duration_seconds": 34, "return_code": 0, "message": null},
+    {"start": "2026-05-28T09:15:00Z", "end": "2026-05-28T09:15:42Z", "status": "SUCCESS", "duration_seconds": 42, "return_code": 0, "message": "3h15m after 06:00 SLA"}
+  ]
+}

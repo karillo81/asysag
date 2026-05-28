@@ -1,0 +1,13 @@
+[2026-05-28 03:00:00 UTC] INFO  extract.sh start: source=transactions endpoint=https://core-banking-api.internal:8443/transactions
+[2026-05-28 03:00:00 UTC] INFO  connection pool=etl-default size=8 timeout=120s
+[2026-05-28 03:02:00 UTC] ERROR connect attempt 1/5 failed: connection timed out to core-banking-api.internal:8443 after 120000ms
+[2026-05-28 03:04:01 UTC] ERROR connect attempt 2/5 failed: connection timed out to core-banking-api.internal:8443 after 120000ms
+[2026-05-28 03:08:03 UTC] ERROR connect attempt 3/5 failed: connection timed out to core-banking-api.internal:8443 after 120000ms
+[2026-05-28 03:12:13 UTC] ERROR connect attempt 4/5 failed: connection timed out to core-banking-api.internal:8443 after 120000ms
+[2026-05-28 03:16:42 UTC] ERROR connect attempt 5/5 failed: connection timed out to core-banking-api.internal:8443 after 120000ms
+[2026-05-28 03:16:42 UTC] ERROR all 5 connection attempts exhausted; aborting transactions extract
+[2026-05-28 03:16:42 UTC] ERROR Caused by: java.net.SocketTimeoutException: connect timed out
+                              at java.base/sun.nio.ch.Net.pollConnect(Native Method)
+                              at /opt/etl/lib/http_client.py:142 in _open()
+                              at /opt/etl/bin/extract.sh:31 in extract_transactions()
+[2026-05-28 03:16:42 UTC] ERROR exit 124 (extract.sh aborted: connection timeout)

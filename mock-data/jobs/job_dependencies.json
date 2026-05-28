@@ -1,0 +1,12 @@
+{
+  "edges": [
+    ["etl_extract_customers", "etl_load_dimensions"],
+    ["etl_extract_transactions", "etl_load_dimensions"],
+    ["etl_load_dimensions", "etl_load_facts"],
+    ["etl_load_facts", "etl_validate_daily"],
+    ["etl_validate_daily", "report_customer_summary"],
+    ["etl_validate_daily", "report_revenue_daily"],
+    ["report_customer_summary", "report_send_emails"],
+    ["report_revenue_daily", "report_send_emails"]
+  ]
+}

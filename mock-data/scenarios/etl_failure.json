@@ -1,0 +1,11 @@
+{
+  "name": "etl_failure",
+  "title": "ETL fact load failure (ORA-12541)",
+  "description": "etl_load_facts fails today after 5 retries with ORA-12541. Same error occurred 3 days ago (May 25) and was resolved by restarting the Oracle listener.",
+  "expected_demo_path": [
+    "From sidebar, click status on etl_load_facts → agent reports FAILURE with return code 137 and the ORA-12541 error.",
+    "Ask: 'have we seen this before?' → agent calls find_similar_incidents, surfaces the May 25 INC-2026-05-25-001 with its full resolution.",
+    "Ask: 'how do we fix it?' → agent recommends restarting the Oracle listener on db-warehouse-prod-01.internal, citing the past resolution steps.",
+    "Ask: 'what's blocked downstream?' → agent calls get_dependencies; explains validate_daily can't run and the morning reporting box has been started manually on stale data."
+  ]
+}

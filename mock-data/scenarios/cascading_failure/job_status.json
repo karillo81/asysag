@@ -1,0 +1,82 @@
+{
+  "etl_box_daily": {
+    "status": "FAILURE",
+    "last_start": "2026-05-28T03:00:00Z",
+    "last_end": "2026-05-28T03:16:42Z",
+    "duration_seconds": 1002,
+    "return_code": null,
+    "message": "Box terminated after etl_extract_transactions FAILURE; all downstream jobs INACTIVE"
+  },
+  "etl_extract_customers": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T03:00:00Z",
+    "last_end": "2026-05-28T03:08:42Z",
+    "duration_seconds": 522,
+    "return_code": 0,
+    "message": null
+  },
+  "etl_extract_transactions": {
+    "status": "FAILURE",
+    "last_start": "2026-05-28T03:00:00Z",
+    "last_end": "2026-05-28T03:16:42Z",
+    "duration_seconds": 1002,
+    "return_code": 124,
+    "message": "ERROR: connection timed out to core-banking-api.internal:8443 after 120000ms (5 attempts)"
+  },
+  "etl_load_dimensions": {
+    "status": "INACTIVE",
+    "last_start": "2026-05-27T03:15:00Z",
+    "last_end": "2026-05-27T03:42:30Z",
+    "duration_seconds": 1650,
+    "return_code": 0,
+    "message": "Condition not met today: s(etl_extract_transactions) is FAILURE"
+  },
+  "etl_load_facts": {
+    "status": "INACTIVE",
+    "last_start": "2026-05-27T03:43:00Z",
+    "last_end": "2026-05-27T04:09:55Z",
+    "duration_seconds": 1615,
+    "return_code": 0,
+    "message": "Condition not met today: s(etl_load_dimensions) is INACTIVE"
+  },
+  "etl_validate_daily": {
+    "status": "INACTIVE",
+    "last_start": "2026-05-27T03:55:12Z",
+    "last_end": "2026-05-27T04:01:48Z",
+    "duration_seconds": 396,
+    "return_code": 0,
+    "message": "Condition not met today: s(etl_load_facts) is INACTIVE"
+  },
+  "reporting_box_morning": {
+    "status": "INACTIVE",
+    "last_start": "2026-05-27T06:00:00Z",
+    "last_end": "2026-05-27T06:20:34Z",
+    "duration_seconds": 1234,
+    "return_code": 0,
+    "message": "Condition not met: s(etl_validate_daily) is INACTIVE"
+  },
+  "report_customer_summary": {
+    "status": "INACTIVE",
+    "last_start": "2026-05-27T06:02:00Z",
+    "last_end": "2026-05-27T06:18:20Z",
+    "duration_seconds": 980,
+    "return_code": 0,
+    "message": "Blocked by upstream ETL failure"
+  },
+  "report_revenue_daily": {
+    "status": "INACTIVE",
+    "last_start": "2026-05-27T06:02:30Z",
+    "last_end": "2026-05-27T06:18:45Z",
+    "duration_seconds": 975,
+    "return_code": 0,
+    "message": "Blocked by upstream ETL failure"
+  },
+  "report_send_emails": {
+    "status": "INACTIVE",
+    "last_start": "2026-05-27T06:20:00Z",
+    "last_end": "2026-05-27T06:20:34Z",
+    "duration_seconds": 34,
+    "return_code": 0,
+    "message": "Blocked by upstream ETL failure"
+  }
+}

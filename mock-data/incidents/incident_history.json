@@ -1,0 +1,40 @@
+{
+  "incidents": [
+    {
+      "id": "INC-2026-05-25-001",
+      "date": "2026-05-25",
+      "job_name": "etl_load_facts",
+      "error_signature": "ORA-12541",
+      "error_excerpt": "ORA-12541: TNS:no listener (db-warehouse-prod-01.internal:1521)",
+      "summary": "Fact load failed on first attempt with Oracle TNS listener unreachable. Root cause traced to scheduled DB host maintenance that did not include the listener in its restart playbook.",
+      "resolution": "1) Verified listener state with `lsnrctl status` on db-warehouse-prod-01.internal — listener was DOWN. 2) DBA team ran `lsnrctl start`. 3) Confirmed reachability with `tnsping warehouse_prod`. 4) Retried etl_load_facts via `sendevent -E FORCE_STARTJOB -J etl_load_facts`. Job succeeded in 1602s (normal). 5) Post-incident: DBA updated the maintenance playbook to include listener restart verification.",
+      "resolved_by": "data-eng + DBA on-call",
+      "resolution_minutes": 95,
+      "runbook_ref": "runbooks/etl_runbook.md#ora-12541"
+    },
+    {
+      "id": "INC-2026-04-12-003",
+      "date": "2026-04-12",
+      "job_name": "etl_load_facts",
+      "error_signature": "ORA-01653",
+      "error_excerpt": "ORA-01653: unable to extend table WAREHOUSE.FACT_TRANSACTIONS by 8192 in tablespace WAREHOUSE_DATA",
+      "summary": "Fact load failed due to tablespace WAREHOUSE_DATA exhausted. Volume grew faster than monthly forecast.",
+      "resolution": "DBA added 200GB to WAREHOUSE_DATA tablespace. Retried successfully. Capacity alarm threshold lowered from 90% to 80% in monitoring.",
+      "resolved_by": "DBA on-call",
+      "resolution_minutes": 45,
+      "runbook_ref": "runbooks/etl_runbook.md#ora-01653"
+    },
+    {
+      "id": "INC-2026-03-04-007",
+      "date": "2026-03-04",
+      "job_name": "etl_extract_transactions",
+      "error_signature": "connection_timeout",
+      "error_excerpt": "ERROR: connection timed out to core-banking-api.internal:8443 after 120000ms",
+      "summary": "Core banking API unresponsive during routine extract window. No corresponding outage on the source side — turned out to be a stuck connection pool on the ETL host.",
+      "resolution": "Restarted etl-prod-01 connection pool service. Retry succeeded. Long-term fix: connection pool config tuned with shorter idle eviction.",
+      "resolved_by": "data-eng",
+      "resolution_minutes": 30,
+      "runbook_ref": "runbooks/etl_runbook.md#connection-timeouts"
+    }
+  ]
+}

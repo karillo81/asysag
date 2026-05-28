@@ -1,0 +1,82 @@
+{
+  "etl_box_daily": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T03:00:00Z",
+    "last_end": "2026-05-28T07:55:11Z",
+    "duration_seconds": 17711,
+    "return_code": 0,
+    "message": "Box completed late (target finish 04:30, actual 07:55) — investigate slow fact load"
+  },
+  "etl_extract_customers": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T03:00:00Z",
+    "last_end": "2026-05-28T03:08:42Z",
+    "duration_seconds": 522,
+    "return_code": 0,
+    "message": null
+  },
+  "etl_extract_transactions": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T03:00:00Z",
+    "last_end": "2026-05-28T03:14:05Z",
+    "duration_seconds": 845,
+    "return_code": 0,
+    "message": null
+  },
+  "etl_load_dimensions": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T03:14:30Z",
+    "last_end": "2026-05-28T03:42:11Z",
+    "duration_seconds": 1661,
+    "return_code": 0,
+    "message": null
+  },
+  "etl_load_facts": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T03:42:30Z",
+    "last_end": "2026-05-28T07:42:30Z",
+    "duration_seconds": 14400,
+    "return_code": 0,
+    "message": "Completed but 9x slower than historical baseline (~27 min). Warehouse DB latency suspected."
+  },
+  "etl_validate_daily": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T07:42:45Z",
+    "last_end": "2026-05-28T07:55:11Z",
+    "duration_seconds": 746,
+    "return_code": 0,
+    "message": null
+  },
+  "reporting_box_morning": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T07:55:30Z",
+    "last_end": "2026-05-28T09:15:42Z",
+    "duration_seconds": 4812,
+    "return_code": 0,
+    "message": "SLA breach: target 06:00, actual finish 09:15"
+  },
+  "report_customer_summary": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T07:55:45Z",
+    "last_end": "2026-05-28T08:14:11Z",
+    "duration_seconds": 1106,
+    "return_code": 0,
+    "message": null
+  },
+  "report_revenue_daily": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T07:55:50Z",
+    "last_end": "2026-05-28T08:13:20Z",
+    "duration_seconds": 1050,
+    "return_code": 0,
+    "message": null
+  },
+  "report_send_emails": {
+    "status": "SUCCESS",
+    "last_start": "2026-05-28T09:15:00Z",
+    "last_end": "2026-05-28T09:15:42Z",
+    "duration_seconds": 42,
+    "return_code": 0,
+    "message": "Finished 3h15m after 06:00 SLA target"
+  }
+}

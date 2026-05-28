@@ -1,0 +1,122 @@
+{
+  "etl_box_daily": {
+    "name": "etl_box_daily",
+    "job_type": "BOX",
+    "machine": "etl-prod-01.internal",
+    "owner": "data-eng",
+    "owner_email": "data-eng@acmebank.example",
+    "description": "Nightly ETL box - extracts, dimension/fact loads, validation"
+  },
+  "etl_extract_customers": {
+    "name": "etl_extract_customers",
+    "job_type": "CMD",
+    "box_name": "etl_box_daily",
+    "command": "/opt/etl/bin/extract.sh customers",
+    "machine": "etl-prod-01.internal",
+    "owner": "data-eng",
+    "owner_email": "data-eng@acmebank.example",
+    "std_out_file": "/var/log/autosys/etl_extract_customers.out",
+    "std_err_file": "/var/log/autosys/etl_extract_customers.err",
+    "condition": null,
+    "description": "Pulls daily customer delta from CRM"
+  },
+  "etl_extract_transactions": {
+    "name": "etl_extract_transactions",
+    "job_type": "CMD",
+    "box_name": "etl_box_daily",
+    "command": "/opt/etl/bin/extract.sh transactions",
+    "machine": "etl-prod-01.internal",
+    "owner": "data-eng",
+    "owner_email": "data-eng@acmebank.example",
+    "std_out_file": "/var/log/autosys/etl_extract_transactions.out",
+    "std_err_file": "/var/log/autosys/etl_extract_transactions.err",
+    "condition": null,
+    "description": "Pulls daily transactions from core banking"
+  },
+  "etl_load_dimensions": {
+    "name": "etl_load_dimensions",
+    "job_type": "CMD",
+    "box_name": "etl_box_daily",
+    "command": "/opt/etl/bin/load.sh dimensions",
+    "machine": "etl-prod-01.internal",
+    "owner": "data-eng",
+    "owner_email": "data-eng@acmebank.example",
+    "std_out_file": "/var/log/autosys/etl_load_dimensions.out",
+    "std_err_file": "/var/log/autosys/etl_load_dimensions.err",
+    "condition": "s(etl_extract_customers) AND s(etl_extract_transactions)",
+    "description": "Loads dimension tables into warehouse"
+  },
+  "etl_load_facts": {
+    "name": "etl_load_facts",
+    "job_type": "CMD",
+    "box_name": "etl_box_daily",
+    "command": "/opt/etl/bin/load.sh facts",
+    "machine": "etl-prod-01.internal",
+    "owner": "data-eng",
+    "owner_email": "data-eng@acmebank.example",
+    "std_out_file": "/var/log/autosys/etl_load_facts.out",
+    "std_err_file": "/var/log/autosys/etl_load_facts.err",
+    "condition": "s(etl_load_dimensions)",
+    "description": "Loads fact tables - most failure-prone step"
+  },
+  "etl_validate_daily": {
+    "name": "etl_validate_daily",
+    "job_type": "CMD",
+    "box_name": "etl_box_daily",
+    "command": "/opt/etl/bin/validate.sh daily",
+    "machine": "etl-prod-01.internal",
+    "owner": "data-eng",
+    "owner_email": "data-eng@acmebank.example",
+    "std_out_file": "/var/log/autosys/etl_validate_daily.out",
+    "std_err_file": "/var/log/autosys/etl_validate_daily.err",
+    "condition": "s(etl_load_facts)",
+    "description": "Row-count and checksum validation"
+  },
+  "reporting_box_morning": {
+    "name": "reporting_box_morning",
+    "job_type": "BOX",
+    "machine": "report-prod-02.internal",
+    "owner": "analytics",
+    "owner_email": "analytics@acmebank.example",
+    "description": "Morning report generation box"
+  },
+  "report_customer_summary": {
+    "name": "report_customer_summary",
+    "job_type": "CMD",
+    "box_name": "reporting_box_morning",
+    "command": "/opt/reports/bin/run.sh customer_summary",
+    "machine": "report-prod-02.internal",
+    "owner": "analytics",
+    "owner_email": "analytics@acmebank.example",
+    "std_out_file": "/var/log/autosys/report_customer_summary.out",
+    "std_err_file": "/var/log/autosys/report_customer_summary.err",
+    "condition": "s(etl_validate_daily)",
+    "description": "Daily customer activity report"
+  },
+  "report_revenue_daily": {
+    "name": "report_revenue_daily",
+    "job_type": "CMD",
+    "box_name": "reporting_box_morning",
+    "command": "/opt/reports/bin/run.sh revenue_daily",
+    "machine": "report-prod-02.internal",
+    "owner": "analytics",
+    "owner_email": "analytics@acmebank.example",
+    "std_out_file": "/var/log/autosys/report_revenue_daily.out",
+    "std_err_file": "/var/log/autosys/report_revenue_daily.err",
+    "condition": "s(etl_validate_daily)",
+    "description": "Daily revenue rollup for finance"
+  },
+  "report_send_emails": {
+    "name": "report_send_emails",
+    "job_type": "CMD",
+    "box_name": "reporting_box_morning",
+    "command": "/opt/reports/bin/send.sh",
+    "machine": "report-prod-02.internal",
+    "owner": "analytics",
+    "owner_email": "analytics@acmebank.example",
+    "std_out_file": "/var/log/autosys/report_send_emails.out",
+    "std_err_file": "/var/log/autosys/report_send_emails.err",
+    "condition": "s(report_customer_summary) AND s(report_revenue_daily)",
+    "description": "Distributes morning reports to stakeholder mailing list"
+  }
+}

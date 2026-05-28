@@ -1,0 +1,16 @@
+[2026-05-28 03:42:30 UTC] INFO  load.sh start: jobs=facts target=db-warehouse-prod-01.internal:1521/warehouse_prod
+[2026-05-28 03:42:31 UTC] INFO  reading source partitions: 14
+[2026-05-28 03:42:31 UTC] INFO  opening Oracle connection (timeout=30s)
+[2026-05-28 03:43:02 UTC] WARN  initial connect failed: ORA-12541: TNS:no listener — retry 1/5 in 30s
+[2026-05-28 03:43:33 UTC] WARN  retry 2/5 failed: ORA-12541: TNS:no listener
+[2026-05-28 03:45:35 UTC] WARN  retry 3/5 failed: ORA-12541: TNS:no listener
+[2026-05-28 03:49:38 UTC] WARN  retry 4/5 failed: ORA-12541: TNS:no listener
+[2026-05-28 03:57:42 UTC] WARN  retry 5/5 failed: ORA-12541: TNS:no listener
+[2026-05-28 04:11:46 UTC] ERROR all 5 retries exhausted; aborting fact load
+[2026-05-28 04:11:46 UTC] ERROR oracle.net.ns.NetException: ORA-12541: TNS:no listener
+                              at oracle.net.resolver.AddrResolution.resolveAndExecute(AddrResolution.java:626)
+                              at oracle.net.ns.NSProtocol.establishConnection(NSProtocol.java:631)
+                              at oracle.jdbc.driver.T4CConnection.connect(T4CConnection.java:1583)
+                              at /opt/etl/lib/oracle_driver.py:88 in _open()
+                              at /opt/etl/bin/load.sh:42 in load_facts()
+[2026-05-28 04:11:48 UTC] ERROR exit 137 (load.sh aborted by retry loop)

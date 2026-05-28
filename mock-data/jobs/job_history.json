@@ -1,0 +1,73 @@
+{
+  "etl_extract_customers": [
+    {"start": "2026-05-22T03:00:00Z", "end": "2026-05-22T03:08:11Z", "status": "SUCCESS", "duration_seconds": 491, "return_code": 0, "message": null},
+    {"start": "2026-05-23T03:00:00Z", "end": "2026-05-23T03:09:02Z", "status": "SUCCESS", "duration_seconds": 542, "return_code": 0, "message": null},
+    {"start": "2026-05-24T03:00:00Z", "end": "2026-05-24T03:07:55Z", "status": "SUCCESS", "duration_seconds": 475, "return_code": 0, "message": null},
+    {"start": "2026-05-25T03:00:00Z", "end": "2026-05-25T03:08:20Z", "status": "SUCCESS", "duration_seconds": 500, "return_code": 0, "message": null},
+    {"start": "2026-05-26T03:00:00Z", "end": "2026-05-26T03:09:18Z", "status": "SUCCESS", "duration_seconds": 558, "return_code": 0, "message": null},
+    {"start": "2026-05-27T03:00:00Z", "end": "2026-05-27T03:08:33Z", "status": "SUCCESS", "duration_seconds": 513, "return_code": 0, "message": null},
+    {"start": "2026-05-28T03:00:00Z", "end": "2026-05-28T03:08:42Z", "status": "SUCCESS", "duration_seconds": 522, "return_code": 0, "message": null}
+  ],
+  "etl_extract_transactions": [
+    {"start": "2026-05-22T03:00:00Z", "end": "2026-05-22T03:13:30Z", "status": "SUCCESS", "duration_seconds": 810, "return_code": 0, "message": null},
+    {"start": "2026-05-23T03:00:00Z", "end": "2026-05-23T03:14:50Z", "status": "SUCCESS", "duration_seconds": 890, "return_code": 0, "message": null},
+    {"start": "2026-05-24T03:00:00Z", "end": "2026-05-24T03:13:12Z", "status": "SUCCESS", "duration_seconds": 792, "return_code": 0, "message": null},
+    {"start": "2026-05-25T03:00:00Z", "end": "2026-05-25T03:14:01Z", "status": "SUCCESS", "duration_seconds": 841, "return_code": 0, "message": null},
+    {"start": "2026-05-26T03:00:00Z", "end": "2026-05-26T03:13:55Z", "status": "SUCCESS", "duration_seconds": 835, "return_code": 0, "message": null},
+    {"start": "2026-05-27T03:00:00Z", "end": "2026-05-27T03:14:20Z", "status": "SUCCESS", "duration_seconds": 860, "return_code": 0, "message": null},
+    {"start": "2026-05-28T03:00:00Z", "end": "2026-05-28T03:14:05Z", "status": "SUCCESS", "duration_seconds": 845, "return_code": 0, "message": null}
+  ],
+  "etl_load_dimensions": [
+    {"start": "2026-05-22T03:14:00Z", "end": "2026-05-22T03:41:33Z", "status": "SUCCESS", "duration_seconds": 1653, "return_code": 0, "message": null},
+    {"start": "2026-05-23T03:15:00Z", "end": "2026-05-23T03:42:40Z", "status": "SUCCESS", "duration_seconds": 1660, "return_code": 0, "message": null},
+    {"start": "2026-05-24T03:14:00Z", "end": "2026-05-24T03:41:22Z", "status": "SUCCESS", "duration_seconds": 1642, "return_code": 0, "message": null},
+    {"start": "2026-05-25T03:15:00Z", "end": "2026-05-25T03:42:51Z", "status": "SUCCESS", "duration_seconds": 1671, "return_code": 0, "message": null},
+    {"start": "2026-05-26T03:14:30Z", "end": "2026-05-26T03:41:48Z", "status": "SUCCESS", "duration_seconds": 1638, "return_code": 0, "message": null},
+    {"start": "2026-05-27T03:15:00Z", "end": "2026-05-27T03:42:30Z", "status": "SUCCESS", "duration_seconds": 1650, "return_code": 0, "message": null},
+    {"start": "2026-05-28T03:14:30Z", "end": "2026-05-28T03:42:11Z", "status": "SUCCESS", "duration_seconds": 1661, "return_code": 0, "message": null}
+  ],
+  "etl_load_facts": [
+    {"start": "2026-05-22T03:42:00Z", "end": "2026-05-22T04:08:11Z", "status": "SUCCESS", "duration_seconds": 1571, "return_code": 0, "message": null},
+    {"start": "2026-05-23T03:43:00Z", "end": "2026-05-23T04:09:30Z", "status": "SUCCESS", "duration_seconds": 1590, "return_code": 0, "message": null},
+    {"start": "2026-05-24T03:42:00Z", "end": "2026-05-24T04:08:45Z", "status": "SUCCESS", "duration_seconds": 1605, "return_code": 0, "message": null},
+    {"start": "2026-05-25T03:43:00Z", "end": "2026-05-25T04:11:18Z", "status": "FAILURE", "duration_seconds": 1698, "return_code": 137, "message": "ORA-12541: TNS:no listener (db-warehouse-prod-01.internal:1521) - DBA restarted listener, retried OK"},
+    {"start": "2026-05-25T05:30:00Z", "end": "2026-05-25T05:56:42Z", "status": "SUCCESS", "duration_seconds": 1602, "return_code": 0, "message": "Manual retry after DBA fix"},
+    {"start": "2026-05-26T03:42:30Z", "end": "2026-05-26T04:09:11Z", "status": "SUCCESS", "duration_seconds": 1601, "return_code": 0, "message": null},
+    {"start": "2026-05-27T03:43:00Z", "end": "2026-05-27T04:09:55Z", "status": "SUCCESS", "duration_seconds": 1615, "return_code": 0, "message": null},
+    {"start": "2026-05-28T03:42:30Z", "end": "2026-05-28T04:11:48Z", "status": "FAILURE", "duration_seconds": 1758, "return_code": 137, "message": "ORA-12541: TNS:no listener (db-warehouse-prod-01.internal:1521)"}
+  ],
+  "etl_validate_daily": [
+    {"start": "2026-05-22T04:08:30Z", "end": "2026-05-22T04:15:11Z", "status": "SUCCESS", "duration_seconds": 401, "return_code": 0, "message": null},
+    {"start": "2026-05-23T04:09:45Z", "end": "2026-05-23T04:16:20Z", "status": "SUCCESS", "duration_seconds": 395, "return_code": 0, "message": null},
+    {"start": "2026-05-24T04:09:00Z", "end": "2026-05-24T04:15:48Z", "status": "SUCCESS", "duration_seconds": 408, "return_code": 0, "message": null},
+    {"start": "2026-05-25T05:57:00Z", "end": "2026-05-25T06:03:42Z", "status": "SUCCESS", "duration_seconds": 402, "return_code": 0, "message": null},
+    {"start": "2026-05-26T04:09:30Z", "end": "2026-05-26T04:16:05Z", "status": "SUCCESS", "duration_seconds": 395, "return_code": 0, "message": null},
+    {"start": "2026-05-27T03:55:12Z", "end": "2026-05-27T04:01:48Z", "status": "SUCCESS", "duration_seconds": 396, "return_code": 0, "message": null}
+  ],
+  "report_customer_summary": [
+    {"start": "2026-05-22T06:01:00Z", "end": "2026-05-22T06:17:11Z", "status": "SUCCESS", "duration_seconds": 971, "return_code": 0, "message": null},
+    {"start": "2026-05-23T06:02:30Z", "end": "2026-05-23T06:19:05Z", "status": "SUCCESS", "duration_seconds": 995, "return_code": 0, "message": null},
+    {"start": "2026-05-24T06:01:45Z", "end": "2026-05-24T06:17:55Z", "status": "SUCCESS", "duration_seconds": 970, "return_code": 0, "message": null},
+    {"start": "2026-05-25T07:00:00Z", "end": "2026-05-25T07:16:32Z", "status": "SUCCESS", "duration_seconds": 992, "return_code": 0, "message": "Delayed - waited on retried etl_load_facts"},
+    {"start": "2026-05-26T06:01:15Z", "end": "2026-05-26T06:17:42Z", "status": "SUCCESS", "duration_seconds": 987, "return_code": 0, "message": null},
+    {"start": "2026-05-27T06:02:00Z", "end": "2026-05-27T06:18:20Z", "status": "SUCCESS", "duration_seconds": 980, "return_code": 0, "message": null}
+  ],
+  "report_revenue_daily": [
+    {"start": "2026-05-22T06:01:00Z", "end": "2026-05-22T06:17:30Z", "status": "SUCCESS", "duration_seconds": 990, "return_code": 0, "message": null},
+    {"start": "2026-05-23T06:02:30Z", "end": "2026-05-23T06:19:01Z", "status": "SUCCESS", "duration_seconds": 991, "return_code": 0, "message": null},
+    {"start": "2026-05-24T06:01:45Z", "end": "2026-05-24T06:18:11Z", "status": "SUCCESS", "duration_seconds": 986, "return_code": 0, "message": null},
+    {"start": "2026-05-25T07:00:00Z", "end": "2026-05-25T07:16:48Z", "status": "SUCCESS", "duration_seconds": 1008, "return_code": 0, "message": "Delayed by upstream"},
+    {"start": "2026-05-26T06:01:15Z", "end": "2026-05-26T06:17:50Z", "status": "SUCCESS", "duration_seconds": 995, "return_code": 0, "message": null},
+    {"start": "2026-05-27T06:02:30Z", "end": "2026-05-27T06:18:45Z", "status": "SUCCESS", "duration_seconds": 975, "return_code": 0, "message": null}
+  ],
+  "report_send_emails": [
+    {"start": "2026-05-22T06:18:00Z", "end": "2026-05-22T06:18:30Z", "status": "SUCCESS", "duration_seconds": 30, "return_code": 0, "message": null},
+    {"start": "2026-05-23T06:20:00Z", "end": "2026-05-23T06:20:35Z", "status": "SUCCESS", "duration_seconds": 35, "return_code": 0, "message": null},
+    {"start": "2026-05-24T06:19:00Z", "end": "2026-05-24T06:19:33Z", "status": "SUCCESS", "duration_seconds": 33, "return_code": 0, "message": null},
+    {"start": "2026-05-25T07:17:00Z", "end": "2026-05-25T07:17:36Z", "status": "SUCCESS", "duration_seconds": 36, "return_code": 0, "message": null},
+    {"start": "2026-05-26T06:18:30Z", "end": "2026-05-26T06:19:01Z", "status": "SUCCESS", "duration_seconds": 31, "return_code": 0, "message": null},
+    {"start": "2026-05-27T06:20:00Z", "end": "2026-05-27T06:20:34Z", "status": "SUCCESS", "duration_seconds": 34, "return_code": 0, "message": null}
+  ],
+  "etl_box_daily": [],
+  "reporting_box_morning": []
+}
