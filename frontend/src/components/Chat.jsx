@@ -10,6 +10,16 @@ import { streamSse } from '../lib/stream.js'
 
 const JOB_NAME_KEYS = ['job_name', 'name']
 
+// crypto.randomUUID() only exists in secure contexts (HTTPS / localhost).
+// We sometimes serve this app over plain HTTP from a public IP, so fall
+// back to a cheap unique-enough id.
+function newId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return Math.random().toString(36).slice(2) + Date.now().toString(36)
+}
+
 function jobNamesFromToolCall(call) {
   const args = call?.args ?? {}
   const names = []
@@ -52,8 +62,8 @@ function Chat({ onJobReferenced, onClear }, ref) {
 
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: 'user', content: trimmed },
-        { id: crypto.randomUUID(), role: 'assistant', content: '', toolCalls: [] },
+        { id: newId(), role: 'user', content: trimmed },
+        { id: newId(), role: 'assistant', content: '', toolCalls: [] },
       ])
       setInput('')
       setBusy(true)
