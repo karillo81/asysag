@@ -45,11 +45,25 @@ class Settings:
     )
     autosys_timeout_seconds: float = float(os.getenv("AUTOSYS_TIMEOUT_SECONDS", "15"))
     # Optional Splunk/ELK/S3 log forwarder. Template gets {job} and {stream}
-    # substituted. If unset, get_job_log returns the JIL path instead.
+    # substituted. If unset, get_job_log falls back to local filesystem
+    # read (see AUTOSYS_LOG_MOUNT_ROOT) and then to a path-only message.
     log_forwarder_url_template: str | None = os.getenv("LOG_FORWARDER_URL_TEMPLATE")
+    # Optional local-filesystem root where the AutoSys agent's `job_logs/`
+    # directory is mounted/synced/symlinked. When set, get_job_log reads
+    # `{AUTOSYS_LOG_MOUNT_ROOT}/{filename}` (filename = basename of the JIL
+    # `std_*_file` after `$AUTO_JOB_NAME` substitution).
+    autosys_log_mount_root: str | None = os.getenv("AUTOSYS_LOG_MOUNT_ROOT")
     # Optional override for the numeric status code table; format
     # "4=SUCCESS,5=FAILURE,..." merged on top of the defaults.
     status_code_overrides: str | None = os.getenv("STATUS_CODE_OVERRIDES")
+    # Strategy for get_job_history. One of:
+    #   "walk-runs" (default) — iterate `autorep -j NAME -w -r N` for N=0..MAX
+    #     until autorep returns CAUAJM_E_10323. Works on every AutoSys we've
+    #     tested; one HTTP request per historical run.
+    #   "days-flag" — single `autorep -j NAME -w -d {days}` call. Documented
+    #     in M7 sub-task 7, but field-tested instances return only the latest
+    #     run summary regardless of days. Faster, less useful.
+    autorep_history_strategy: str | None = os.getenv("AUTOSYS_AUTOREP_HISTORY_STRATEGY")
 
 
 settings = Settings()

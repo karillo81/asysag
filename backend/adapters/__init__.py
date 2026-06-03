@@ -44,6 +44,8 @@ def get_adapter(mode: str, mock_data_dir: Path | None = None) -> AutoSysAdapter:
             verify_tls=settings.autosys_verify_tls,
             timeout_seconds=settings.autosys_timeout_seconds,
             log_forwarder_url_template=settings.log_forwarder_url_template,
+            log_mount_root=settings.autosys_log_mount_root,
             status_code_overrides=settings.status_code_overrides,
+            autorep_history_strategy=settings.autorep_history_strategy,
         )
     raise ValueError(f"unknown AUTOSYS_MODE: {mode!r} (expected 'mock' or 'live')")

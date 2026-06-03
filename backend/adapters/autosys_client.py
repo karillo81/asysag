@@ -8,6 +8,7 @@ shape easy to swap (e.g. X-AUTH-TOKEN later) in one place.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -31,12 +32,14 @@ class AutoSysClient:
     ):
         if not base_url.endswith("/"):
             base_url = base_url + "/"
+        # No default Accept: per-call header drives content negotiation.
+        # Some AutoSys surfaces (notably /AEWS/jil/...) return text/plain and
+        # refuse with HTTP 406 if the client demands application/json.
         self._client = httpx.Client(
             base_url=base_url,
             auth=(username, password),
             verify=verify_tls,
             timeout=timeout_seconds,
-            headers={"Accept": "application/json"},
         )
 
     def close(self) -> None:
@@ -62,6 +65,36 @@ class AutoSysClient:
     ) -> Any:
         return self._send("POST", path, params=params, json=json, expect_json=True)
 
+    def post_command(self, command: str) -> str:
+        """POST /AEWS/command/run and return the stdout (or stderr) text.
+
+        The observed real-AutoSys response is one of:
+          {"stdOut": ["line", "line", ...]}    — success path
+          {"stdErr": ["CAUAJM_E_... message"]} — autorep-level error
+                                                 (HTTP is still 200)
+        Some installs / Swagger surfaces alternately return {"output": "..."}.
+        Returns the joined text in all cases; callers inspect the body for
+        the `CAUAJM_E_*` patterns to distinguish JobNotFound from data.
+        """
+        raw = self._send(
+            "POST",
+            "command/run",
+            json={"command": command},
+            expect_json=False,
+        )
+        try:
+            payload = json.loads(raw)
+        except (TypeError, ValueError):
+            return raw
+        if isinstance(payload, dict):
+            for field in ("stdOut", "stdErr", "output"):
+                if field in payload:
+                    value = payload[field]
+                    if isinstance(value, list):
+                        return "\n".join(str(x) for x in value)
+                    return str(value)
+        return raw
+
     def _send(
         self,
         method: str,
@@ -72,8 +105,11 @@ class AutoSysClient:
     ) -> Any:
         # The AutoSys REST surface is rooted under /AEWS/... so callers pass
         # relative paths like "job/etl_load_facts" or "jil/job".
+        accept = "application/json" if expect_json else "text/plain, */*"
         try:
-            response = self._client.request(method, path, params=params, json=json)
+            response = self._client.request(
+                method, path, params=params, json=json, headers={"Accept": accept}
+            )
         except httpx.RequestError as e:
             # Connection refused, DNS failure, TLS handshake, timeout, etc.
             logger.warning("autosys client: %s %s failed: %s", method, path, e)

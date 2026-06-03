@@ -44,6 +44,13 @@ Frontend on `http://localhost:5173`. The dev server proxies `/api/*` to the back
 
 Copy `.env.example` to `.env` and fill in the credentials matching your `LITELLM_MODEL`. `.env` is gitignored.
 
+Live-mode-only knobs worth noting:
+
+- `LOG_FORWARDER_URL_TEMPLATE` — point at Splunk/ELK/S3 if you want real log content; otherwise `get_job_log` falls back to the local-mount path and then to a path-only message.
+- `AUTOSYS_LOG_MOUNT_ROOT` — local directory where the AutoSys agent's `job_logs/` is mounted (NFS/SMB/sshfs/bind). When set, `get_job_log` reads `{mount_root}/{filename}` directly. Cheapest way to get real log content when the agent host is reachable.
+- `STATUS_CODE_OVERRIDES` — patch the numeric status-code table (`"4=SUCCESS,5=FAILURE,99=CUSTOM"`) without a code change.
+- `AUTOSYS_AUTOREP_HISTORY_STRATEGY` — how `get_job_history` fetches runs. Default `walk-runs` iterates `autorep -j NAME -w -r N` for N=0,1,... until autorep reports no more runs; one HTTP call per historical run. `days-flag` does a single `autorep -j NAME -w -d {days}` instead — faster, but field-tested AutoSys instances return only the latest run summary that way.
+
 ---
 
 ## Run via Docker (tomorrow's path)
