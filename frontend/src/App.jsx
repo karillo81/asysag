@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { AuthProvider, useAuth } from './auth/AuthContext.jsx'
 import Chat from './components/Chat.jsx'
 import JobsSidebar from './components/JobsSidebar.jsx'
+import Login from './components/Login.jsx'
 import ModeBadge from './components/ModeBadge.jsx'
 import ScenariosMenu from './components/ScenariosMenu.jsx'
+import { apiFetch } from './lib/api.js'
 
-function App() {
+function AppShell() {
+  const { user, checking, logout } = useAuth()
   const [health, setHealth] = useState(null)
   const [referenced, setReferenced] = useState([])
   const chatRef = useRef(null)
   const sidebarRef = useRef(null)
 
   useEffect(() => {
-    fetch('/api/health')
+    if (!user) return
+    apiFetch('/api/health')
       .then((r) => r.json())
       .then(setHealth)
       .catch(() => setHealth({ status: 'error', mode: 'unknown' }))
-  }, [])
+  }, [user])
 
   const noteJobReferenced = useCallback((name) => {
     setReferenced((prev) => {
@@ -34,6 +39,15 @@ function App() {
     sidebarRef.current?.refresh()
   }, [])
 
+  if (checking) {
+    return (
+      <div className="h-svh flex items-center justify-center">
+        <span className="mono text-xs text-zinc-500">checking session…</span>
+      </div>
+    )
+  }
+  if (!user) return <Login />
+
   return (
     <div className="h-svh flex flex-col">
       <header className="border-b border-zinc-800 px-4 py-2 flex items-center justify-between shrink-0">
@@ -46,6 +60,14 @@ function App() {
         <div className="flex items-center gap-3">
           <ScenariosMenu onReplayed={onScenarioReplayed} />
           <ModeBadge mode={health?.mode} />
+          <span className="mono text-xs text-zinc-500">{user}</span>
+          <button
+            onClick={logout}
+            className="mono text-xs px-2 py-0.5 border border-zinc-700 rounded text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
+            title="Sign out"
+          >
+            sign out
+          </button>
         </div>
       </header>
 
@@ -66,6 +88,14 @@ function App() {
         </section>
       </main>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   )
 }
 

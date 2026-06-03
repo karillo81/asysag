@@ -44,6 +44,8 @@ Frontend on `http://localhost:5173`. The dev server proxies `/api/*` to the back
 
 Copy `.env.example` to `.env` and fill in the credentials matching your `LITELLM_MODEL`. `.env` is gitignored.
 
+**Login gate.** The frontend won't render until you sign in. Default `AUTH_USERNAME=root` and `AUTH_PASSWORD=changeme` — change the password in `.env` before exposing the app. Session is an HttpOnly cookie signed with `SESSION_SECRET`; leave that unset for dev (auto-generated on each backend start) or set it for stable sessions across restarts.
+
 Live-mode-only knobs worth noting:
 
 - `LOG_FORWARDER_URL_TEMPLATE` — point at Splunk/ELK/S3 if you want real log content; otherwise `get_job_log` falls back to the local-mount path and then to a path-only message.

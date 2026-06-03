@@ -1,10 +1,26 @@
+import logging
 import os
+import secrets
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+
+def _resolve_session_secret() -> str:
+    value = os.getenv("SESSION_SECRET")
+    if value:
+        return value
+    generated = secrets.token_urlsafe(32)
+    logger.warning(
+        "SESSION_SECRET not set; generated an ephemeral secret. Sessions will "
+        "not survive a backend restart. Set SESSION_SECRET in .env for stable sessions."
+    )
+    return generated
 
 _BACKEND_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _BACKEND_DIR.parent
@@ -53,6 +69,12 @@ class Settings:
     # `{AUTOSYS_LOG_MOUNT_ROOT}/{filename}` (filename = basename of the JIL
     # `std_*_file` after `$AUTO_JOB_NAME` substitution).
     autosys_log_mount_root: str | None = os.getenv("AUTOSYS_LOG_MOUNT_ROOT")
+
+    # Single-user login gate. See backend/auth.py.
+    auth_username: str = os.getenv("AUTH_USERNAME", "root")
+    auth_password: str = os.getenv("AUTH_PASSWORD", "changeme")
+    session_secret: str = field(default_factory=_resolve_session_secret)
+    session_ttl_seconds: int = int(os.getenv("SESSION_TTL_SECONDS", "604800"))
     # Optional override for the numeric status code table; format
     # "4=SUCCESS,5=FAILURE,..." merged on top of the defaults.
     status_code_overrides: str | None = os.getenv("STATUS_CODE_OVERRIDES")
@@ -67,3 +89,9 @@ class Settings:
 
 
 settings = Settings()
+
+if settings.auth_password == "changeme":
+    logger.warning(
+        "AUTH_PASSWORD is the default 'changeme'. Change it in .env before "
+        "exposing the app beyond your local machine."
+    )

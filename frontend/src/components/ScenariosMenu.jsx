@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { apiFetch } from '../lib/api.js'
 
 export default function ScenariosMenu({ onReplayed }) {
   const [open, setOpen] = useState(false)
@@ -10,7 +11,7 @@ export default function ScenariosMenu({ onReplayed }) {
   const rootRef = useRef(null)
 
   const refresh = () =>
-    fetch('/api/scenarios')
+    apiFetch('/api/scenarios')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.statusText))))
       .then((data) => {
         setScenarios(data.scenarios ?? [])
@@ -39,7 +40,7 @@ export default function ScenariosMenu({ onReplayed }) {
     setBusy(name)
     setError(null)
     try {
-      const res = await fetch(
+      const res = await apiFetch(
         `/api/scenarios/${encodeURIComponent(name)}/reset`,
         { method: 'POST' },
       )

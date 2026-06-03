@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { apiFetch } from '../lib/api.js'
 
 const STATUS_RANK = { FAILURE: 0, TERMINATED: 0, RUNNING: 1, SUCCESS: 2 }
 
@@ -54,7 +55,7 @@ function JobsSidebar({ referenced, onAction }, ref) {
     setLoading(true)
     setError(null)
     try {
-      const res = await fetch('/api/jobs')
+      const res = await apiFetch('/api/jobs')
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
       const data = await res.json()
       setJobs(data)

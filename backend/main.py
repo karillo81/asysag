@@ -1,6 +1,6 @@
 import json
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from adapters import JobNotFound, MockAdapter, get_adapter
 from agent import build_agent, run_turn, stream_turn
 from agent.memory import Memory
+from auth import SESSION_COOKIE_NAME, current_user, make_session_token, verify_credentials
 from config import settings
 from rag import KnowledgeBase
 
@@ -48,6 +49,11 @@ class ChatResponse(BaseModel):
     tool_calls: list[dict]
 
 
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=256)
+
+
 @app.get("/health")
 def health():
     return {
@@ -57,8 +63,39 @@ def health():
     }
 
 
+@app.post("/login")
+def login(req: LoginRequest, response: Response):
+    if not verify_credentials(req.username, req.password):
+        raise HTTPException(status_code=401, detail="invalid credentials")
+    token = make_session_token(req.username)
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        max_age=settings.session_ttl_seconds,
+        httponly=True,
+        samesite="lax",
+        secure=False,  # demo runs over plain http://localhost
+    )
+    return {"username": req.username}
+
+
+@app.post("/logout")
+def logout():
+    response = Response(status_code=204)
+    response.delete_cookie(SESSION_COOKIE_NAME)
+    return response
+
+
+@app.get("/me")
+def me(user: str = Depends(current_user)):
+    return {"username": user}
+
+
 @app.get("/jobs")
-def list_jobs(filter: str | None = Query(default=None, description="Substring match on job name")):
+def list_jobs(
+    filter: str | None = Query(default=None, description="Substring match on job name"),
+    _user: str = Depends(current_user),
+):
     try:
         return adapter.list_jobs(name_filter=filter)
     except NotImplementedError as e:
@@ -66,7 +103,7 @@ def list_jobs(filter: str | None = Query(default=None, description="Substring ma
 
 
 @app.get("/jobs/{job_name}")
-def get_job(job_name: str):
+def get_job(job_name: str, _user: str = Depends(current_user)):
     try:
         return adapter.get_job_status(job_name)
     except JobNotFound as e:
@@ -76,7 +113,11 @@ def get_job(job_name: str):
 
 
 @app.get("/jobs/{job_name}/history")
-def get_history(job_name: str, days: int = Query(default=7, ge=1, le=90)):
+def get_history(
+    job_name: str,
+    days: int = Query(default=7, ge=1, le=90),
+    _user: str = Depends(current_user),
+):
     try:
         return adapter.get_job_history(job_name, days=days)
     except JobNotFound as e:
@@ -86,7 +127,7 @@ def get_history(job_name: str, days: int = Query(default=7, ge=1, le=90)):
 
 
 @app.get("/jobs/{job_name}/dependencies")
-def get_dependencies(job_name: str):
+def get_dependencies(job_name: str, _user: str = Depends(current_user)):
     try:
         return adapter.get_dependencies(job_name)
     except JobNotFound as e:
@@ -96,14 +137,14 @@ def get_dependencies(job_name: str):
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest):
+def chat(req: ChatRequest, _user: str = Depends(current_user)):
     history = [t.model_dump() for t in req.history]
     result = run_turn(agent, req.message, history=history)
     return ChatResponse(**result)
 
 
 @app.post("/chat/stream")
-async def chat_stream(req: ChatRequest):
+async def chat_stream(req: ChatRequest, _user: str = Depends(current_user)):
     history = [t.model_dump() for t in req.history]
 
     async def event_gen():
@@ -138,7 +179,7 @@ def _load_scenarios() -> dict[str, dict]:
 
 
 @app.get("/scenarios")
-def list_scenarios():
+def list_scenarios(_user: str = Depends(current_user)):
     active = adapter.scenario if isinstance(adapter, MockAdapter) else None
     return {
         "active": active,
@@ -147,7 +188,7 @@ def list_scenarios():
 
 
 @app.post("/scenarios/{name}/reset")
-def reset_scenario(name: str):
+def reset_scenario(name: str, _user: str = Depends(current_user)):
     scenarios = _load_scenarios()
     if name not in scenarios:
         raise HTTPException(status_code=404, detail=f"unknown scenario: {name}")

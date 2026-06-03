@@ -10,7 +10,12 @@ export async function* streamSse(url, body, signal) {
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     body: JSON.stringify(body),
     signal,
+    credentials: 'include',
   })
+  if (res.status === 401) {
+    window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+    throw new Error('not authenticated')
+  }
   if (!res.ok || !res.body) {
     throw new Error(`SSE request failed: ${res.status} ${res.statusText}`)
   }
