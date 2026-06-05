@@ -491,6 +491,90 @@ def test_get_job_log_invalid_stream_raises():
         adapter.get_job_log("any", stream="bogus")
 
 
+def _jil_with_machine_handler(request: httpx.Request) -> httpx.Response:
+    if request.url.path == "/AEWS/jil/job":
+        return httpx.Response(
+            200,
+            text=(
+                "insert_job: test9   job_type: CMD\n"
+                " machine: etl-prod-01.internal\n"
+                ' std_err_file: "/opt/autosys/logs/$AUTO_JOB_NAME.err"\n'
+            ),
+        )
+    return httpx.Response(404)
+
+
+def _orchestrator_returning(content: str):
+    """A LogOrchestrator whose SFTP transport always yields `content`."""
+    from contextlib import contextmanager
+
+    from adapters.log_orchestrator import LogOrchestrator
+
+    class _File:
+        def __init__(self, data): self._data = data
+        def seek(self, n): pass
+        def read(self): return self._data
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    class _Stat:
+        st_size = len(content.encode())
+
+    class _SFTP:
+        def stat(self, path): return _Stat()
+        def open(self, path, mode="rb"): return _File(content.encode())
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+
+    @contextmanager
+    def factory(endpoint):
+        yield _SFTP()
+
+    host_map = {"default": {"user": "autosys", "key_path": "/k"}}
+    return LogOrchestrator(host_map, sftp_factory=factory)
+
+
+def test_get_job_log_uses_orchestrator_when_configured():
+    """With an SFTP orchestrator and no mount, return the fetched content."""
+    transport = httpx.MockTransport(_jil_with_machine_handler)
+    client = AutoSysClient(base_url="https://autosys.example/AEWS/", username="x", password="x")
+    client._client = httpx.Client(
+        base_url="https://autosys.example/AEWS/",
+        auth=("x", "x"),
+        transport=transport,
+        headers={"Accept": "application/json"},
+    )
+    adapter = LiveAdapter(
+        base_url="ignored",
+        username="ignored",
+        password="ignored",
+        log_orchestrator=_orchestrator_returning("real stderr from the agent host\n"),
+        client=client,
+    )
+    assert adapter.get_job_log("test9") == "real stderr from the agent host\n"
+
+
+def test_get_job_log_orchestrator_runs_after_mount_miss(tmp_path):
+    """Mount configured but file absent -> fall through to the orchestrator."""
+    transport = httpx.MockTransport(_jil_with_machine_handler)
+    client = AutoSysClient(base_url="https://autosys.example/AEWS/", username="x", password="x")
+    client._client = httpx.Client(
+        base_url="https://autosys.example/AEWS/",
+        auth=("x", "x"),
+        transport=transport,
+        headers={"Accept": "application/json"},
+    )
+    adapter = LiveAdapter(
+        base_url="ignored",
+        username="ignored",
+        password="ignored",
+        log_mount_root=str(tmp_path),  # empty -> mount miss
+        log_orchestrator=_orchestrator_returning("fetched over sftp\n"),
+        client=client,
+    )
+    assert adapter.get_job_log("test9") == "fetched over sftp\n"
+
+
 def test_transport_error_surfaces_as_autosys_api_error():
     def handler(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("connection refused")

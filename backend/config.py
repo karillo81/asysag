@@ -70,6 +70,30 @@ class Settings:
     # `std_*_file` after `$AUTO_JOB_NAME` substitution).
     autosys_log_mount_root: str | None = os.getenv("AUTOSYS_LOG_MOUNT_ROOT")
 
+    # Optional SFTP log orchestrator (see adapters/log_orchestrator.py).
+    # AUTOSYS_LOG_SSH_CONFIG points at a JSON host map keyed by AutoSys
+    # `machine` name; when set, get_job_log SFTPs the configured std_*_file
+    # from the host that ran the job (tried after the local mount, before the
+    # path-only fallback). Requires the optional `paramiko` dependency
+    # (`pip install '.[ssh]'`). Unset => disabled, no behaviour change.
+    autosys_log_ssh_config: str | None = os.getenv("AUTOSYS_LOG_SSH_CONFIG")
+    autosys_log_ssh_max_bytes: int = int(os.getenv("AUTOSYS_LOG_SSH_MAX_BYTES", "65536"))
+    autosys_log_ssh_timeout_seconds: float = float(
+        os.getenv("AUTOSYS_LOG_SSH_TIMEOUT_SECONDS", "10")
+    )
+    autosys_log_cache_ttl_seconds: float = float(
+        os.getenv("AUTOSYS_LOG_CACHE_TTL_SECONDS", "60")
+    )
+    # known_hosts file used to verify agent-host keys; defaults to the system
+    # known_hosts. Set AUTOSYS_LOG_SSH_INSECURE_SKIP_HOST_KEY=true to disable
+    # host-key verification (NOT recommended; mirrors AUTOSYS_VERIFY_TLS=false).
+    autosys_log_ssh_known_hosts: str | None = os.getenv("AUTOSYS_LOG_SSH_KNOWN_HOSTS")
+    autosys_log_ssh_insecure_skip_host_key: bool = field(
+        default_factory=lambda: _str_to_bool(
+            os.getenv("AUTOSYS_LOG_SSH_INSECURE_SKIP_HOST_KEY"), False
+        )
+    )
+
     # Single-user login gate. See backend/auth.py.
     auth_username: str = os.getenv("AUTH_USERNAME", "root")
     auth_password: str = os.getenv("AUTH_PASSWORD", "changeme")

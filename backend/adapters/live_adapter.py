@@ -19,7 +19,10 @@ import logging
 import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import TYPE_CHECKING, Any, Iterator
+
+if TYPE_CHECKING:
+    from .log_orchestrator import LogOrchestrator
 
 from .autorep_parser import parse_autorep_wide
 from .autosys_client import AutoSysAPIError, AutoSysClient
@@ -45,6 +48,7 @@ class LiveAdapter(AutoSysAdapter):
         status_code_overrides: str | None = None,
         autorep_history_strategy: str | None = None,
         log_mount_root: str | None = None,
+        log_orchestrator: "LogOrchestrator | None" = None,
         client: AutoSysClient | None = None,
     ):
         # Allow callers to inject a pre-built client (used by tests with
@@ -59,6 +63,7 @@ class LiveAdapter(AutoSysAdapter):
         self._status_table = build_table(status_code_overrides)
         self._log_forwarder = log_forwarder_url_template
         self._log_mount_root = Path(log_mount_root) if log_mount_root else None
+        self._log_orchestrator = log_orchestrator
         self._history_strategy = autorep_history_strategy or "walk-runs"
 
     @staticmethod
@@ -238,14 +243,23 @@ class LiveAdapter(AutoSysAdapter):
                     logger.warning("log file not found at %s", local)
                 except OSError as e:
                     logger.warning("failed to read log %s: %s", local, e)
-                # Fall through to path-only message.
+                # Fall through to orchestrator / path-only message.
+
+            # SFTP orchestrator: connect to the host that ran the job and tail
+            # the configured log file. Returns None (and we fall through) if
+            # disabled, unresolvable, or the fetch fails for any reason.
+            if self._log_orchestrator is not None and self._log_orchestrator.enabled:
+                content = self._log_orchestrator.fetch(machine, path)
+                if content is not None:
+                    return content
 
             machine_str = f" on host '{machine}'" if machine else ""
             return (
                 f"AutoSys REST API does not expose log content. "
                 f"Configured std_{stream}_file{machine_str}: {path}. "
                 f"Fetch this file from the agent host directly, or set "
-                f"LOG_FORWARDER_URL_TEMPLATE / AUTOSYS_LOG_MOUNT_ROOT."
+                f"LOG_FORWARDER_URL_TEMPLATE / AUTOSYS_LOG_MOUNT_ROOT / "
+                f"AUTOSYS_LOG_SSH_CONFIG."
             )
 
         if job_type and job_type.upper() == "BOX":
