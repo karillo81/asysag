@@ -1,0 +1,17 @@
+# Compose override that enables the SFTP log orchestrator.
+#
+# Apply on top of the base compose so the backend container can see the host
+# map and the SSH key it uses to pull logs off AutoSys agent hosts:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.logs.yml up -d --build
+#
+# Everything it mounts lives under ./deploy/ (gitignored — it holds the private
+# key). See DEPLOY.md §11. Without this override the base compose runs exactly
+# as before and the orchestrator stays disabled.
+services:
+  agent-backend:
+    volumes:
+      # Host map: AutoSys machine name -> SSH endpoint.
+      - ./deploy/log-hosts.json:/app/deploy/log-hosts.json:ro
+      # SSH material: private key (id_logs) + known_hosts for host-key checks.
+      - ./deploy/ssh:/app/deploy/ssh:ro

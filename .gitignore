@@ -3,6 +3,9 @@
 .env.local
 .env.*.local
 
+# Deploy-time secrets: SSH private key + real host map for the log orchestrator
+deploy/
+
 # Python
 __pycache__/
 *.pyc

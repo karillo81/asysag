@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy to deploy/log-hosts.json and edit. Maps AutoSys `machine` names to SSH endpoints. Per-machine entries inherit from `default`; a machine not listed here uses its own name as the hostname. Paths are as seen INSIDE the backend container (see docker-compose.logs.yml).",
+  "default": {
+    "user": "autosys",
+    "key_path": "/app/deploy/ssh/id_logs",
+    "port": 22
+  },
+  "etl-prod-01.internal": {
+    "host": "10.0.4.11"
+  },
+  "fin-prod-02.internal": {
+    "host": "10.0.4.12",
+    "user": "svc_autosys"
+  }
+}

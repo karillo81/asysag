@@ -400,3 +400,60 @@ sshfs autosys@<autosys-host>:/opt/CA/WorkloadAutomationAE/SystemAgent/WA_AGENT/j
 Add `AUTOSYS_LOG_MOUNT_ROOT=/home/autosys/autosys-logs` to `.env`, restart the backend, and `get_job_log` will return actual log content instead of a path-only message.
 
 Make the mount persistent across reboots with an `/etc/fstab` entry — see the sshfs man page for the exact line.
+
+---
+
+## 11. Optional: SFTP log orchestrator (pull logs per machine)
+
+An alternative to §10's single sshfs mount: the backend SFTPs each job's log
+off the agent host that ran it, resolving the host from a per-machine map.
+Useful when jobs run across **several** agent machines. It's tried after the
+local mount and before the path-only fallback, so §10 and §11 can coexist.
+
+The orchestrator runs **inside the `agent-backend` container**, so the host
+map and the SSH key must be mounted in. `docker-compose.logs.yml` does that
+from `./deploy/` (gitignored — it holds the private key).
+
+```bash
+cd ~/asysag
+mkdir -p deploy/ssh && chmod 700 deploy/ssh
+
+# 1. Generate a dedicated keypair for log access (private key stays on the box).
+ssh-keygen -t ed25519 -N "" -f deploy/ssh/id_logs -C "asysag-log-orchestrator"
+
+# 2. Authorise it on each AutoSys agent host (repeat per host / per user).
+ssh-copy-id -i deploy/ssh/id_logs.pub <ssh-user>@<agent-host>
+
+# 3. Pin each agent host's key so host-key verification passes.
+ssh-keyscan -H <agent-host> >> deploy/ssh/known_hosts   # repeat per host
+
+# 4. Write the host map (see log-hosts.example.json for the shape).
+cp log-hosts.example.json deploy/log-hosts.json
+nano deploy/log-hosts.json     # set host/user/key_path per machine
+```
+
+Add to `.env`:
+
+```ini
+AUTOSYS_LOG_SSH_CONFIG=/app/deploy/log-hosts.json
+AUTOSYS_LOG_SSH_KNOWN_HOSTS=/app/deploy/ssh/known_hosts
+# AUTOSYS_LOG_SSH_MAX_BYTES=65536          # tail size per log
+# AUTOSYS_LOG_CACHE_TTL_SECONDS=60
+# AUTOSYS_LOG_SSH_INSECURE_SKIP_HOST_KEY=false   # leave false; skips host-key check
+```
+
+In `deploy/log-hosts.json`, `key_path` is the **in-container** path
+(`/app/deploy/ssh/id_logs`), not the host path. Then rebuild with the override:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.logs.yml up -d --build
+```
+
+Verify from inside the container (no real SSH needed for the import check):
+
+```bash
+docker compose exec agent-backend python -c "import paramiko; print('paramiko', paramiko.__version__)"
+```
+
+Then ask the agent for a failed job's log and confirm it returns real content
+rather than the "REST API does not expose log content" message.
