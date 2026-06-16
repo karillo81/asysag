@@ -5,6 +5,7 @@ const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
+  const [role, setRole] = useState(null)
   const [checking, setChecking] = useState(true)
 
   useEffect(() => {
@@ -14,9 +15,13 @@ export function AuthProvider({ children }) {
       .then((data) => {
         if (cancelled) return
         setUser(data?.username ?? null)
+        setRole(data?.role ?? null)
       })
       .catch(() => {
-        if (!cancelled) setUser(null)
+        if (!cancelled) {
+          setUser(null)
+          setRole(null)
+        }
       })
       .finally(() => {
         if (!cancelled) setChecking(false)
@@ -27,7 +32,10 @@ export function AuthProvider({ children }) {
   }, [])
 
   useEffect(() => {
-    const onUnauthorized = () => setUser(null)
+    const onUnauthorized = () => {
+      setUser(null)
+      setRole(null)
+    }
     window.addEventListener('auth:unauthorized', onUnauthorized)
     return () => window.removeEventListener('auth:unauthorized', onUnauthorized)
   }, [])
@@ -44,15 +52,17 @@ export function AuthProvider({ children }) {
     }
     const data = await res.json()
     setUser(data.username)
+    setRole(data.role ?? null)
   }, [])
 
   const logout = useCallback(async () => {
     await apiFetch('/api/logout', { method: 'POST' })
     setUser(null)
+    setRole(null)
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, checking, login, logout }}>
+    <AuthContext.Provider value={{ user, role, checking, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

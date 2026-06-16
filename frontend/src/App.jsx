@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx'
+import AccountsModal from './components/AccountsModal.jsx'
 import Chat from './components/Chat.jsx'
 import JobsSidebar from './components/JobsSidebar.jsx'
 import Login from './components/Login.jsx'
@@ -8,9 +9,10 @@ import ScenariosMenu from './components/ScenariosMenu.jsx'
 import { apiFetch } from './lib/api.js'
 
 function AppShell() {
-  const { user, checking, logout } = useAuth()
+  const { user, role, checking, logout } = useAuth()
   const [health, setHealth] = useState(null)
   const [referenced, setReferenced] = useState([])
+  const [accountsOpen, setAccountsOpen] = useState(false)
   const chatRef = useRef(null)
   const sidebarRef = useRef(null)
 
@@ -60,7 +62,17 @@ function AppShell() {
         <div className="flex items-center gap-3">
           <ScenariosMenu onReplayed={onScenarioReplayed} />
           <ModeBadge mode={health?.mode} />
-          <span className="mono text-xs text-zinc-500">{user}</span>
+          <span className="mono text-xs text-zinc-500">
+            {user}
+            {role === 'admin' && <span className="text-zinc-600"> · admin</span>}
+          </span>
+          <button
+            onClick={() => setAccountsOpen(true)}
+            className="mono text-xs px-2 py-0.5 border border-zinc-700 rounded text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
+            title={role === 'admin' ? 'Manage accounts' : 'Change my password'}
+          >
+            {role === 'admin' ? 'accounts' : 'password'}
+          </button>
           <button
             onClick={logout}
             className="mono text-xs px-2 py-0.5 border border-zinc-700 rounded text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
@@ -70,6 +82,14 @@ function AppShell() {
           </button>
         </div>
       </header>
+
+      {accountsOpen && (
+        <AccountsModal
+          onClose={() => setAccountsOpen(false)}
+          currentUser={user}
+          isAdmin={role === 'admin'}
+        />
+      )}
 
       <main className="flex-1 grid grid-cols-1 md:grid-cols-[300px_1fr] min-h-0">
         <aside className="min-h-0 border-r border-zinc-800 hidden md:flex md:flex-col">
