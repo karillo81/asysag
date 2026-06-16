@@ -8,8 +8,10 @@ services:
     # The admin "restart" action exits the process; this policy relaunches it
     # with the new settings overlay (and recovers from crashes).
     restart: unless-stopped
+    # Bind to localhost only: external access must go through the host's TLS
+    # reverse proxy (nginx :443), so nobody can bypass HTTPS to reach the API.
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./mock-data:/app/mock-data:ro
       - ./docs:/app/docs:ro
@@ -21,8 +23,9 @@ services:
     depends_on:
       - agent-backend
     restart: unless-stopped
+    # Localhost only; the host TLS proxy forwards :443 -> 127.0.0.1:5173.
     ports:
-      - "5173:80"
+      - "127.0.0.1:5173:80"
 
 volumes:
   agent-state:
