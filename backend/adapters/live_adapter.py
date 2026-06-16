@@ -114,12 +114,17 @@ class LiveAdapter(AutoSysAdapter):
         return self._decorate(self._first_job(payload))
 
     def list_jobs(self, name_filter: str | None = None) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {}
+        # The AEWS /job filter expression only supports exact field equality
+        # (e.g. `name==etl_load_facts`); glob wildcards and camelCase field
+        # names are rejected with HTTP 400. A server-side *substring* match is
+        # therefore impossible, so fetch the corpus and filter client-side —
+        # same substring semantics as the mock adapter.
+        payload = self._client.get_json("job")
+        jobs = [self._decorate(j) for j in self._job_list(payload)]
         if name_filter:
-            # AutoSys filter syntax: jobName==*foo*. Use substring contains.
-            params["filter"] = f"jobName==*{name_filter}*"
-        payload = self._client.get_json("job", params=params or None)
-        return [self._decorate(j) for j in self._job_list(payload)]
+            needle = name_filter.lower()
+            jobs = [j for j in jobs if needle in str(j.get("name", "")).lower()]
+        return jobs
 
     def get_job_history(self, job_name: str, days: int = 7) -> list[dict[str, Any]]:
         if self._history_strategy == "days-flag":

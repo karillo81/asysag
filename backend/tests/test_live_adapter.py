@@ -92,17 +92,24 @@ def test_list_jobs_translates_each_status():
     assert statuses == {"a": "SUCCESS", "b": "FAILURE", "c": "RUNNING"}
 
 
-def test_list_jobs_passes_filter_param():
+def test_list_jobs_filters_by_substring_client_side():
+    # AEWS rejects wildcard/camelCase filter expressions with HTTP 400, so the
+    # adapter fetches the full corpus and filters by substring itself. It must
+    # NOT send a server-side `filter` param, and must return only name matches.
     seen_params: dict[str, str] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen_params.update(dict(request.url.params))
-        return httpx.Response(200, json={"job": []})
+        return httpx.Response(200, json={"job": [
+            {"name": "etl_load_facts", "status": "4"},
+            {"name": "etl_extract", "status": "1"},
+            {"name": "billing_run", "status": "5"},
+        ]})
 
     adapter = _make_adapter(handler)
-    adapter.list_jobs(name_filter="etl")
-    assert "filter" in seen_params
-    assert "*etl*" in seen_params["filter"]
+    jobs = adapter.list_jobs(name_filter="etl")
+    assert "filter" not in seen_params
+    assert {j["name"] for j in jobs} == {"etl_load_facts", "etl_extract"}
 
 
 def test_get_dependencies_parses_jil_condition_and_finds_downstream():
