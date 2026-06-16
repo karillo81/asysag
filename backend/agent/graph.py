@@ -103,6 +103,17 @@ def _assemble_messages(message: str, history: list[dict] | None) -> list:
     return msgs
 
 
+def _flatten_content(content) -> str:
+    """Some models (e.g. Gemma 4 26B) return content as a list of parts rather
+    than a string. Flatten to text so the JSON reply is always a string."""
+    if isinstance(content, list):
+        return "".join(
+            part.get("text", "") if isinstance(part, dict) else str(part)
+            for part in content
+        )
+    return content or ""
+
+
 def run_turn(agent, message: str, history: list[dict] | None = None) -> dict:
     """Synchronous chat turn. Returns the assistant reply plus tool calls."""
     msgs = _assemble_messages(message, history)
@@ -114,7 +125,7 @@ def run_turn(agent, message: str, history: list[dict] | None = None) -> dict:
         for call in getattr(m, "tool_calls", []) or []:
             tool_calls.append({"name": call["name"], "args": call.get("args", {})})
 
-    reply = all_messages[-1].content if all_messages else ""
+    reply = _flatten_content(all_messages[-1].content) if all_messages else ""
     return {"reply": reply, "tool_calls": tool_calls}
 
 

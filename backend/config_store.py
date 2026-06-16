@@ -40,7 +40,7 @@ class Spec:
 SPECS: tuple[Spec, ...] = (
     # -- LLM ------------------------------------------------------------
     Spec("LITELLM_MODEL", "Model", "LLM", attr="litellm_model",
-         help="LiteLLM model id, e.g. gemini/gemini-3-flash-preview or huggingface/gemma-4-12B-it"),
+         help="LiteLLM model id. Gemma 4 via Google AI Studio (reuses GEMINI_API_KEY, no endpoint): gemini/gemma-4-31b-it"),
     Spec("LITELLM_API_BASE", "Endpoint URL", "LLM", attr="litellm_api_base",
          help="OpenAI-compatible endpoint (vLLM/TGI/HF Endpoint); blank uses the provider default"),
     Spec("LITELLM_API_KEY", "Endpoint API key", "LLM", secret=True,
