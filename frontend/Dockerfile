@@ -1,7 +1,9 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# npm install (not `npm ci`) so the build tolerates a package-lock that is
+# slightly out of sync with package.json — the deploy box hit that with ci.
+RUN npm install
 COPY . .
 RUN npm run build
 
