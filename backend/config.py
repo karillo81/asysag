@@ -35,6 +35,18 @@ def _str_to_bool(v: str | None, default: bool) -> bool:
     return v.strip().lower() in ("1", "true", "yes", "on")
 
 
+# Apply the admin-editable settings overlay BEFORE the dataclass reads env, so
+# overrides win over the baked-in container env. STATE_DIR itself is not
+# editable, so we can resolve the overlay path straight from env here.
+import config_store  # noqa: E402  (must follow _DEFAULT_STATE_DIR)
+
+OVERRIDES_PATH = Path(os.getenv("STATE_DIR", str(_DEFAULT_STATE_DIR))) / "overrides.env"
+_applied_overrides = config_store.apply_overrides(OVERRIDES_PATH)
+if _applied_overrides:
+    logger.info("config: applied %d setting override(s) from %s",
+                len(_applied_overrides), OVERRIDES_PATH)
+
+
 @dataclass(frozen=True)
 class Settings:
     autosys_mode: str = os.getenv("AUTOSYS_MODE", "mock")

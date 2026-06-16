@@ -1,9 +1,16 @@
 import json
+import os
+import signal
+import threading
+from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
+
+import config_store
+from config_store import InvalidSettingInput
 
 from adapters import JobNotFound, MockAdapter, get_adapter
 from agent import build_agent, run_turn, stream_turn
@@ -24,7 +31,7 @@ from users import (
     UserExists,
     UserNotFound,
 )
-from config import settings
+from config import OVERRIDES_PATH, settings
 from rag import KnowledgeBase
 
 app = FastAPI(title="AutoSys Agent", version="0.1.0")
@@ -313,3 +320,43 @@ def change_own_password(
     except UserError as e:
         raise _account_http_error(e)
     return Response(status_code=204)
+
+
+# --- Runtime settings + service restart (admin-only) ---------------------
+
+class SettingsUpdate(BaseModel):
+    updates: dict[str, Any] = Field(default_factory=dict)
+
+
+@app.get("/admin/settings")
+def get_settings(_admin: dict = Depends(require_admin)):
+    return {"groups": config_store.grouped_view(settings, OVERRIDES_PATH)}
+
+
+@app.put("/admin/settings")
+def put_settings(req: SettingsUpdate, _admin: dict = Depends(require_admin)):
+    try:
+        changed = config_store.write_overrides(OVERRIDES_PATH, req.updates)
+    except InvalidSettingInput as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    return {
+        "changed": changed,
+        # Settings are frozen at import, so applied overrides only take effect
+        # after the backend restarts and re-reads the overlay.
+        "restart_required": bool(changed),
+        "groups": config_store.grouped_view(settings, OVERRIDES_PATH),
+    }
+
+
+def _schedule_restart(delay: float = 0.5) -> None:
+    """Exit the process after the response flushes; the container's restart
+    policy (restart: unless-stopped) relaunches it with the new settings."""
+    timer = threading.Timer(delay, lambda: os.kill(os.getpid(), signal.SIGTERM))
+    timer.daemon = True
+    timer.start()
+
+
+@app.post("/admin/restart", status_code=202)
+def admin_restart(_admin: dict = Depends(require_admin)):
+    _schedule_restart()
+    return {"status": "restarting"}
