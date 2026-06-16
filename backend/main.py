@@ -2,15 +2,17 @@ import json
 import os
 import signal
 import threading
+import uuid
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 import config_store
 from config_store import InvalidSettingInput
+from agent.capture import dataset_stats, reset_capture_context, set_capture_context
 
 from adapters import JobNotFound, MockAdapter, get_adapter
 from agent import build_agent, run_turn, stream_turn
@@ -177,23 +179,31 @@ def get_dependencies(job_name: str, _user: str = Depends(current_user)):
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest, _user: str = Depends(current_user)):
+def chat(req: ChatRequest, user: str = Depends(current_user)):
     history = [t.model_dump() for t in req.history]
-    result = run_turn(agent, req.message, history=history)
+    token = set_capture_context(user, uuid.uuid4().hex)
+    try:
+        result = run_turn(agent, req.message, history=history)
+    finally:
+        reset_capture_context(token)
     return ChatResponse(**result)
 
 
 @app.post("/chat/stream")
-async def chat_stream(req: ChatRequest, _user: str = Depends(current_user)):
+async def chat_stream(req: ChatRequest, user: str = Depends(current_user)):
     history = [t.model_dump() for t in req.history]
+    conversation_id = uuid.uuid4().hex
 
     async def event_gen():
+        token = set_capture_context(user, conversation_id)
         try:
             async for event in stream_turn(agent, req.message, history=history):
                 etype = event.pop("type")
                 yield f"event: {etype}\ndata: {json.dumps(event)}\n\n"
         except Exception as exc:
             yield f"event: error\ndata: {json.dumps({'message': str(exc)})}\n\n"
+        finally:
+            reset_capture_context(token)
 
     return StreamingResponse(
         event_gen(),
@@ -360,3 +370,24 @@ def _schedule_restart(delay: float = 0.5) -> None:
 def admin_restart(_admin: dict = Depends(require_admin)):
     _schedule_restart()
     return {"status": "restarting"}
+
+
+def _training_dataset_path():
+    return settings.state_dir / "training" / "llm_calls.jsonl"
+
+
+@app.get("/admin/training-data")
+def training_data_info(_admin: dict = Depends(require_admin)):
+    stats = dataset_stats(_training_dataset_path())
+    stats["enabled"] = settings.capture_training_data
+    return stats
+
+
+@app.get("/admin/training-data/download")
+def training_data_download(_admin: dict = Depends(require_admin)):
+    path = _training_dataset_path()
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="no training data captured yet")
+    return FileResponse(
+        path, media_type="application/x-ndjson", filename="llm_calls.jsonl"
+    )

@@ -40,7 +40,11 @@ class Spec:
 SPECS: tuple[Spec, ...] = (
     # -- LLM ------------------------------------------------------------
     Spec("LITELLM_MODEL", "Model", "LLM", attr="litellm_model",
-         help="LiteLLM model id, e.g. gemini/gemini-3-flash-preview"),
+         help="LiteLLM model id, e.g. gemini/gemini-3-flash-preview or huggingface/gemma-4-12B-it"),
+    Spec("LITELLM_API_BASE", "Endpoint URL", "LLM", attr="litellm_api_base",
+         help="OpenAI-compatible endpoint (vLLM/TGI/HF Endpoint); blank uses the provider default"),
+    Spec("LITELLM_API_KEY", "Endpoint API key", "LLM", secret=True,
+         attr="litellm_api_key", help="Bearer token the endpoint expects (HF token / vLLM key)"),
     Spec("ANTHROPIC_API_KEY", "Anthropic API key", "LLM", secret=True,
          attr="anthropic_api_key"),
     Spec("GEMINI_API_KEY", "Gemini API key", "LLM", secret=True),
@@ -67,6 +71,9 @@ SPECS: tuple[Spec, ...] = (
          attr="autorep_history_strategy", help="walk-runs | days-flag"),
     Spec("SESSION_TTL_SECONDS", "Session lifetime (s)", "Behaviour", kind="int",
          attr="session_ttl_seconds"),
+    Spec("CAPTURE_TRAINING_DATA", "Capture LLM calls for training", "Behaviour",
+         kind="bool", attr="capture_training_data",
+         help="Log every (redacted) LLM request/response to the distillation dataset"),
 )
 
 _BY_KEY = {s.key: s for s in SPECS}

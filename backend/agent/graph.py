@@ -5,6 +5,7 @@ LLM context never sees PII (verified by tests/test_redactor.py)."""
 
 from __future__ import annotations
 
+import logging
 from typing import AsyncIterator
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -17,6 +18,8 @@ from rag import KnowledgeBase
 
 from .memory import Memory
 from .tools import make_tools
+
+logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
     "You are an AutoSys operator's assistant. You help technicians investigate "
@@ -66,11 +69,25 @@ def build_agent(
     knowledge_base: KnowledgeBase,
 ):
     """Construct the LangGraph ReAct agent bound to the given backends."""
-    model = ChatLiteLLM(
-        model=settings.litellm_model,
-        temperature=0,
-        streaming=True,
-    )
+    model_kwargs: dict = {
+        "model": settings.litellm_model,
+        "temperature": 0,
+        "streaming": True,
+    }
+    # Route to an OpenAI-compatible endpoint (vLLM/TGI/HF Endpoint) when set.
+    if settings.litellm_api_base:
+        model_kwargs["api_base"] = settings.litellm_api_base
+    if settings.litellm_api_key:
+        model_kwargs["api_key"] = settings.litellm_api_key
+    # Capture every LLM call to the distillation dataset when enabled.
+    if settings.capture_training_data:
+        from .capture import TrainingCaptureHandler
+
+        dataset = settings.state_dir / "training" / "llm_calls.jsonl"
+        model_kwargs["callbacks"] = [TrainingCaptureHandler(dataset)]
+        logger.info("capture: training-data capture ON -> %s", dataset)
+
+    model = ChatLiteLLM(**model_kwargs)
     tools = make_tools(adapter, memory, knowledge_base)
     return create_react_agent(model, tools)
 

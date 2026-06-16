@@ -52,6 +52,12 @@ class Settings:
     autosys_mode: str = os.getenv("AUTOSYS_MODE", "mock")
     litellm_model: str = os.getenv("LITELLM_MODEL", "anthropic/claude-sonnet-4-5")
     anthropic_api_key: str | None = os.getenv("ANTHROPIC_API_KEY")
+    # Optional OpenAI-compatible endpoint (e.g. a vLLM/TGI server or an HF
+    # Inference Endpoint serving a local model). When set, LiteLLM routes the
+    # model there instead of the provider default. The key is whatever bearer
+    # the endpoint expects (HF token, vLLM api-key, or a dummy value).
+    litellm_api_base: str | None = os.getenv("LITELLM_API_BASE")
+    litellm_api_key: str | None = os.getenv("LITELLM_API_KEY")
     backend_host: str = os.getenv("BACKEND_HOST", "127.0.0.1")
     backend_port: int = int(os.getenv("BACKEND_PORT", "8000"))
     mock_data_dir: Path = field(
@@ -129,6 +135,13 @@ class Settings:
     #     in M7 sub-task 7, but field-tested instances return only the latest
     #     run summary regardless of days. Faster, less useful.
     autorep_history_strategy: str | None = os.getenv("AUTOSYS_AUTOREP_HISTORY_STRATEGY")
+
+    # Capture every LLM request/response to a JSONL dataset (for distillation
+    # / fine-tuning). Off by default. Records are redacted before write; the
+    # dataset lives under state_dir/training/. See agent/capture.py.
+    capture_training_data: bool = field(
+        default_factory=lambda: _str_to_bool(os.getenv("CAPTURE_TRAINING_DATA"), False)
+    )
 
 
 settings = Settings()
