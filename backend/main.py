@@ -8,7 +8,22 @@ from pydantic import BaseModel, Field
 from adapters import JobNotFound, MockAdapter, get_adapter
 from agent import build_agent, run_turn, stream_turn
 from agent.memory import Memory
-from auth import SESSION_COOKIE_NAME, current_user, make_session_token, verify_credentials
+from auth import (
+    SESSION_COOKIE_NAME,
+    current_account,
+    current_user,
+    make_session_token,
+    require_admin,
+    user_store,
+    verify_credentials,
+)
+from users import (
+    InvalidUserInput,
+    LastAdminError,
+    UserError,
+    UserExists,
+    UserNotFound,
+)
 from config import settings
 from rag import KnowledgeBase
 
@@ -54,6 +69,23 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=1, max_length=256)
 
 
+class CreateAccountRequest(BaseModel):
+    username: str = Field(..., min_length=1, max_length=64)
+    password: str = Field(..., min_length=1, max_length=256)
+    role: str = Field(..., pattern="^(admin|operator)$")
+
+
+class UpdateAccountRequest(BaseModel):
+    password: str | None = Field(default=None, min_length=1, max_length=256)
+    role: str | None = Field(default=None, pattern="^(admin|operator)$")
+    is_active: bool | None = None
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, max_length=256)
+    new_password: str = Field(..., min_length=1, max_length=256)
+
+
 @app.get("/health")
 def health():
     return {
@@ -65,18 +97,19 @@ def health():
 
 @app.post("/login")
 def login(req: LoginRequest, response: Response):
-    if not verify_credentials(req.username, req.password):
+    account = verify_credentials(req.username, req.password)
+    if account is None:
         raise HTTPException(status_code=401, detail="invalid credentials")
-    token = make_session_token(req.username)
+    token = make_session_token(account["username"])
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
         max_age=settings.session_ttl_seconds,
         httponly=True,
         samesite="lax",
-        secure=False,  # demo runs over plain http://localhost
+        secure=settings.session_cookie_secure,
     )
-    return {"username": req.username}
+    return {"username": account["username"], "role": account["role"]}
 
 
 @app.post("/logout")
@@ -87,8 +120,8 @@ def logout():
 
 
 @app.get("/me")
-def me(user: str = Depends(current_user)):
-    return {"username": user}
+def me(account: dict = Depends(current_account)):
+    return {"username": account["username"], "role": account["role"]}
 
 
 @app.get("/jobs")
@@ -202,3 +235,81 @@ def reset_scenario(name: str, _user: str = Depends(current_user)):
     except FileNotFoundError as e:
         raise HTTPException(status_code=500, detail=str(e))
     return {"active": adapter.scenario, "manifest": scenarios[name]}
+
+
+# --- Account management (admin-only, except own-password change) ---------
+
+def _account_http_error(exc: UserError) -> HTTPException:
+    code = {
+        UserExists: 409,
+        UserNotFound: 404,
+        LastAdminError: 409,
+        InvalidUserInput: 422,
+    }.get(type(exc), 400)
+    return HTTPException(status_code=code, detail=str(exc))
+
+
+@app.get("/accounts")
+def list_accounts(_admin: dict = Depends(require_admin)):
+    return {"accounts": user_store.list()}
+
+
+@app.post("/accounts", status_code=201)
+def create_account(req: CreateAccountRequest, admin: dict = Depends(require_admin)):
+    try:
+        return user_store.create(
+            req.username, req.password, req.role, created_by=admin["username"]
+        )
+    except UserError as e:
+        raise _account_http_error(e)
+
+
+@app.patch("/accounts/{username}")
+def update_account(
+    username: str, req: UpdateAccountRequest, admin: dict = Depends(require_admin)
+):
+    if user_store.get(username) is None:
+        raise HTTPException(status_code=404, detail=f"unknown user: {username}")
+    # An admin cannot lock themselves out: role/active changes to your own
+    # account must go through a different admin. Password reset is fine.
+    if username == admin["username"] and (
+        req.role is not None or req.is_active is not None
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="cannot change your own role or active state; use another admin",
+        )
+    try:
+        if req.password is not None:
+            user_store.set_password(username, req.password)
+        if req.role is not None:
+            user_store.set_role(username, req.role)
+        if req.is_active is not None:
+            user_store.set_active(username, req.is_active)
+    except UserError as e:
+        raise _account_http_error(e)
+    return user_store.get_account(username)
+
+
+@app.delete("/accounts/{username}", status_code=204)
+def delete_account(username: str, admin: dict = Depends(require_admin)):
+    if username == admin["username"]:
+        raise HTTPException(status_code=400, detail="cannot delete your own account")
+    try:
+        user_store.delete(username)
+    except UserError as e:
+        raise _account_http_error(e)
+    return Response(status_code=204)
+
+
+@app.post("/account/password", status_code=204)
+def change_own_password(
+    req: ChangePasswordRequest, account: dict = Depends(current_account)
+):
+    if verify_credentials(account["username"], req.current_password) is None:
+        raise HTTPException(status_code=403, detail="current password is incorrect")
+    try:
+        user_store.set_password(account["username"], req.new_password)
+    except UserError as e:
+        raise _account_http_error(e)
+    return Response(status_code=204)

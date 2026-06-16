@@ -94,11 +94,18 @@ class Settings:
         )
     )
 
-    # Single-user login gate. See backend/auth.py.
+    # Login gate. On first start these env creds seed the first admin into the
+    # account store (state/auth.sqlite); thereafter the store governs login and
+    # AUTH_PASSWORD has no effect. See backend/auth.py and backend/users.py.
     auth_username: str = os.getenv("AUTH_USERNAME", "root")
     auth_password: str = os.getenv("AUTH_PASSWORD", "changeme")
     session_secret: str = field(default_factory=_resolve_session_secret)
     session_ttl_seconds: int = int(os.getenv("SESSION_TTL_SECONDS", "604800"))
+    # Set true once the app is served over HTTPS so the session cookie is only
+    # sent on secure connections. Stays false for the plain-HTTP dev/test box.
+    session_cookie_secure: bool = field(
+        default_factory=lambda: _str_to_bool(os.getenv("SESSION_COOKIE_SECURE"), False)
+    )
     # Optional override for the numeric status code table; format
     # "4=SUCCESS,5=FAILURE,..." merged on top of the defaults.
     status_code_overrides: str | None = os.getenv("STATUS_CODE_OVERRIDES")

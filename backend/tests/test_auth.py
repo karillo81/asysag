@@ -40,7 +40,9 @@ def test_login_rejects_wrong_username(client, good_creds):
 def test_login_accepts_correct_credentials(client, good_creds):
     response = client.post("/login", json=good_creds)
     assert response.status_code == 200
-    assert response.json() == {"username": good_creds["username"]}
+    body = response.json()
+    assert body["username"] == good_creds["username"]
+    assert body["role"] == "admin"  # bootstrap seeds the env user as admin
     assert response.cookies.get("session")
 
 
@@ -63,7 +65,9 @@ def test_me_returns_username_when_authenticated(client, good_creds):
     client.post("/login", json=good_creds)
     response = client.get("/me")
     assert response.status_code == 200
-    assert response.json() == {"username": good_creds["username"]}
+    body = response.json()
+    assert body["username"] == good_creds["username"]
+    assert body["role"] == "admin"
 
 
 def test_me_returns_401_without_session(client):
