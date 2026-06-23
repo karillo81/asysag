@@ -29,7 +29,7 @@ function jobNamesFromToolCall(call) {
   return names
 }
 
-function Chat({ onJobReferenced, onClear }, ref) {
+function Chat({ onJobReferenced, onClear, onTurnComplete }, ref) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
@@ -105,9 +105,10 @@ function Chat({ onJobReferenced, onClear }, ref) {
         setError(e.message)
       } finally {
         setBusy(false)
+        onTurnComplete?.()
       }
     },
-    [busy, messages, onJobReferenced],
+    [busy, messages, onJobReferenced, onTurnComplete],
   )
 
   const onKeyDown = (e) => {

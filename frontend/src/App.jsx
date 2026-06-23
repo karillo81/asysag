@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx'
 import AccountsModal from './components/AccountsModal.jsx'
+import ActionLog from './components/ActionLog.jsx'
 import Chat from './components/Chat.jsx'
 import JobsSidebar from './components/JobsSidebar.jsx'
 import Login from './components/Login.jsx'
 import ModeBadge from './components/ModeBadge.jsx'
+import PendingActions from './components/PendingActions.jsx'
 import ScenariosMenu from './components/ScenariosMenu.jsx'
 import SettingsModal from './components/SettingsModal.jsx'
 import { apiFetch } from './lib/api.js'
@@ -15,8 +17,12 @@ function AppShell() {
   const [referenced, setReferenced] = useState([])
   const [accountsOpen, setAccountsOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [actionLogOpen, setActionLogOpen] = useState(false)
+  const [actionsBump, setActionsBump] = useState(0)
   const chatRef = useRef(null)
   const sidebarRef = useRef(null)
+
+  const refreshActions = useCallback(() => setActionsBump((b) => b + 1), [])
 
   useEffect(() => {
     if (!user) return
@@ -68,6 +74,13 @@ function AppShell() {
             {user}
             {role === 'admin' && <span className="text-zinc-600"> · admin</span>}
           </span>
+          <button
+            onClick={() => setActionLogOpen(true)}
+            className="mono text-xs px-2 py-0.5 border border-zinc-700 rounded text-zinc-400 hover:text-zinc-200 hover:border-zinc-500"
+            title="Action log"
+          >
+            actions
+          </button>
           {role === 'admin' && (
             <button
               onClick={() => setSettingsOpen(true)}
@@ -104,6 +117,7 @@ function AppShell() {
       {settingsOpen && role === 'admin' && (
         <SettingsModal onClose={() => setSettingsOpen(false)} />
       )}
+      {actionLogOpen && <ActionLog onClose={() => setActionLogOpen(false)} />}
 
       <main className="flex-1 grid grid-cols-1 md:grid-cols-[300px_1fr] min-h-0">
         <aside className="min-h-0 border-r border-zinc-800 hidden md:flex md:flex-col">
@@ -113,12 +127,20 @@ function AppShell() {
             onAction={sendFromSidebar}
           />
         </aside>
-        <section className="min-h-0">
-          <Chat
-            ref={chatRef}
-            onJobReferenced={noteJobReferenced}
-            onClear={clearReferenced}
+        <section className="min-h-0 flex flex-col">
+          <PendingActions
+            reload={actionsBump}
+            role={role}
+            onResolved={refreshActions}
           />
+          <div className="flex-1 min-h-0">
+            <Chat
+              ref={chatRef}
+              onJobReferenced={noteJobReferenced}
+              onClear={clearReferenced}
+              onTurnComplete={refreshActions}
+            />
+          </div>
         </section>
       </main>
     </div>
