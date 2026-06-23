@@ -59,14 +59,14 @@ def test_send_job_event_posts_job_endpoint_and_body():
         seen["url"] = str(request.url)
         seen["method"] = request.method
         seen["body"] = request.read().decode()
-        return httpx.Response(200, json={"status": "OK"})
+        return httpx.Response(201)  # AEWS returns 201 with an empty body
 
     adapter = _live_with(handler)
     out = adapter.send_job_event("force_start_job", "etl_load_facts", {"comment": "rerun"})
     assert seen["method"] == "POST"
-    assert seen["url"].endswith("/AEWS/api/event/force-start-job")
+    assert seen["url"].endswith("/AEWS/event/force-start-job")
     assert json.loads(seen["body"]) == {"jobName": "etl_load_facts", "comment": "rerun"}
-    assert out["response"] == {"status": "OK"}
+    assert out["response"] == "ok"  # empty body normalised to "ok"
 
 
 def test_send_job_event_uses_machine_field_for_machine_actions():
@@ -79,8 +79,21 @@ def test_send_job_event_uses_machine_field_for_machine_actions():
 
     adapter = _live_with(handler)
     adapter.send_job_event("machine_offline", "autosys-test")
-    assert seen["url"].endswith("/AEWS/api/event/machine-offline")
+    assert seen["url"].endswith("/AEWS/event/machine-offline")
     assert json.loads(seen["body"]) == {"machineName": "autosys-test"}
+
+
+def test_send_job_event_applies_param_map():
+    seen = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen["body"] = request.read().decode()
+        return httpx.Response(201)
+
+    adapter = _live_with(handler)
+    # change_status maps the agent-facing 'status' -> AEWS 'jobStatus'.
+    adapter.send_job_event("change_status", "etl_load_facts", {"status": "SUCCESS"})
+    assert json.loads(seen["body"]) == {"jobName": "etl_load_facts", "jobStatus": "SUCCESS"}
 
 
 def test_send_job_event_unknown_action_raises():

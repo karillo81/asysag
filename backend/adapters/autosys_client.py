@@ -65,6 +65,11 @@ class AutoSysClient:
     ) -> Any:
         return self._send("POST", path, params=params, json=json, expect_json=True)
 
+    def post_event(self, path: str, json: dict[str, Any]) -> str:
+        """POST a write event (e.g. event/hold-job). Returns the response body
+        text (often empty on a 201). Raises AutoSysAPIError on any non-2xx."""
+        return self._send("POST", path, json=json, expect_json=False)
+
     def post_command(self, command: str) -> str:
         """POST /AEWS/command/run and return the stdout (or stderr) text.
 

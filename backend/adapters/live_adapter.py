@@ -212,7 +212,10 @@ class LiveAdapter(AutoSysAdapter):
         action = get_action(action_key)
         if action is None:
             raise AdapterError(f"unknown action: {action_key}")
-        body: dict[str, Any] = dict(params or {})
+        # Rename agent-facing params to the AEWS body field names.
+        body: dict[str, Any] = {
+            action.param_map.get(k, k): v for k, v in (params or {}).items()
+        }
         if action.target == "job":
             body["jobName"] = target
         elif action.target == "machine":
@@ -221,14 +224,14 @@ class LiveAdapter(AutoSysAdapter):
             body["machineName"] = target
         # scheduler-wide actions (stop_demon) carry no target field.
         try:
-            resp = self._client.post_json(f"api/event/{action.endpoint}", json=body)
+            resp = self._client.post_event(f"event/{action.endpoint}", body)
         except AutoSysAPIError as e:
             raise AdapterError(f"{action_key} on {target!r} failed: {e}") from e
         return {
             "action": action_key,
             "endpoint": action.endpoint,
             "target": target,
-            "response": resp,
+            "response": resp or "ok",
         }
 
     def get_job_log(self, job_name: str, stream: str = "err") -> str:

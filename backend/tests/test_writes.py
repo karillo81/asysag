@@ -80,7 +80,7 @@ def test_propose_tool_rejects_destructive_not_in_allowlist(tmp_path, a_job):
         store = ActionStore(tmp_path / "a.sqlite")
         tools = {t.name: t for t in make_tools(adapter, None, None, store)}
         out = json.loads(tools["propose_job_action"].invoke(
-            {"action": "delete_job", "target": a_job}
+            {"action": "cancel_job", "target": a_job}
         ))
         assert out["error"] == "action_not_allowed"
         assert store.list() == []
@@ -168,9 +168,9 @@ def test_operator_confirms_tier_a_executes(patched, operator_client, writes_on, 
 
 def test_operator_cannot_confirm_tier_c(patched, operator_client, a_job):
     store, _ = patched
-    _set_writes(True, "delete_job")  # destructive allowlisted
+    _set_writes(True, "cancel_job")  # destructive allowlisted
     try:
-        a = _stage(store, "delete_job", a_job, tier="C", destructive=True)
+        a = _stage(store, "cancel_job", a_job, tier="C", destructive=True)
         r = operator_client.post(
             f"/actions/{a['id']}/confirm", json={"confirm_destructive": True}
         )
@@ -181,9 +181,9 @@ def test_operator_cannot_confirm_tier_c(patched, operator_client, a_job):
 
 def test_destructive_requires_double_confirm(patched, admin_client, a_job):
     store, adapter = patched
-    _set_writes(True, "delete_job")
+    _set_writes(True, "cancel_job")
     try:
-        a = _stage(store, "delete_job", a_job, tier="C", destructive=True)
+        a = _stage(store, "cancel_job", a_job, tier="C", destructive=True)
         # Without the flag -> 400, nothing executed.
         assert admin_client.post(f"/actions/{a['id']}/confirm", json={}).status_code == 400
         assert adapter.sent_events == []
@@ -192,7 +192,7 @@ def test_destructive_requires_double_confirm(patched, admin_client, a_job):
             f"/actions/{a['id']}/confirm", json={"confirm_destructive": True}
         )
         assert r.status_code == 200 and r.json()["status"] == "executed"
-        assert adapter.sent_events[0]["action"] == "delete_job"
+        assert adapter.sent_events[0]["action"] == "cancel_job"
     finally:
         _set_writes(False)
 
@@ -201,7 +201,7 @@ def test_confirm_destructive_blocked_if_not_allowlisted(patched, admin_client, a
     store, adapter = patched
     _set_writes(True, None)  # empty allowlist -> destructive blocked even for admin
     try:
-        a = _stage(store, "delete_job", a_job, tier="C", destructive=True)
+        a = _stage(store, "cancel_job", a_job, tier="C", destructive=True)
         r = admin_client.post(
             f"/actions/{a['id']}/confirm", json={"confirm_destructive": True}
         )
