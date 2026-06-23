@@ -13,6 +13,15 @@ from pydantic import BaseModel, Field
 import config_store
 from config_store import InvalidSettingInput
 from agent.capture import dataset_stats, reset_capture_context, set_capture_context
+from agent.actor_context import reset_actor, set_actor
+from action_store import ActionNotFound, ActionStateError, ActionStore
+from adapters import AdapterError
+from adapters.job_actions import (
+    can_approve,
+    get_action,
+    is_action_allowed,
+    parse_allowlist,
+)
 
 from adapters import JobNotFound, MockAdapter, get_adapter
 from agent import build_agent, run_turn, stream_turn
@@ -55,7 +64,8 @@ knowledge_base = KnowledgeBase(
     source_dirs=[settings.docs_dir, settings.mock_data_dir / "runbooks"],
 )
 knowledge_base.ingest()
-agent = build_agent(adapter, memory, knowledge_base)
+action_store = ActionStore(settings.state_dir / "actions.sqlite")
+agent = build_agent(adapter, memory, knowledge_base, action_store)
 
 
 class ChatTurn(BaseModel):
@@ -181,11 +191,13 @@ def get_dependencies(job_name: str, _user: str = Depends(current_user)):
 @app.post("/chat", response_model=ChatResponse)
 def chat(req: ChatRequest, user: str = Depends(current_user)):
     history = [t.model_dump() for t in req.history]
-    token = set_capture_context(user, uuid.uuid4().hex)
+    cap = set_capture_context(user, uuid.uuid4().hex)
+    actor = set_actor(user)
     try:
         result = run_turn(agent, req.message, history=history)
     finally:
-        reset_capture_context(token)
+        reset_capture_context(cap)
+        reset_actor(actor)
     return ChatResponse(**result)
 
 
@@ -195,7 +207,8 @@ async def chat_stream(req: ChatRequest, user: str = Depends(current_user)):
     conversation_id = uuid.uuid4().hex
 
     async def event_gen():
-        token = set_capture_context(user, conversation_id)
+        cap = set_capture_context(user, conversation_id)
+        actor = set_actor(user)
         try:
             async for event in stream_turn(agent, req.message, history=history):
                 etype = event.pop("type")
@@ -203,7 +216,8 @@ async def chat_stream(req: ChatRequest, user: str = Depends(current_user)):
         except Exception as exc:
             yield f"event: error\ndata: {json.dumps({'message': str(exc)})}\n\n"
         finally:
-            reset_capture_context(token)
+            reset_capture_context(cap)
+            reset_actor(actor)
 
     return StreamingResponse(
         event_gen(),
@@ -391,3 +405,77 @@ def training_data_download(_admin: dict = Depends(require_admin)):
     return FileResponse(
         path, media_type="application/x-ndjson", filename="llm_calls.jsonl"
     )
+
+
+# --- Job write-actions: list / confirm / reject --------------------------
+
+class ConfirmActionRequest(BaseModel):
+    # Destructive actions require this explicit second confirmation.
+    confirm_destructive: bool = False
+
+
+@app.get("/actions")
+def list_actions(
+    status: str | None = Query(default=None),
+    _account: dict = Depends(current_account),
+):
+    """The action audit log — proposals and their outcomes. Any signed-in user
+    can see it; approving/rejecting is gated below."""
+    return {"actions": action_store.list(status=status, limit=200)}
+
+
+@app.post("/actions/{action_id}/confirm")
+def confirm_action(
+    action_id: str,
+    req: ConfirmActionRequest,
+    account: dict = Depends(current_account),
+):
+    """Approve and EXECUTE a proposed action. This is the only path that
+    mutates AutoSys, and it re-checks every gate at execution time."""
+    record = action_store.get(action_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="unknown action")
+    if record["status"] != "proposed":
+        raise HTTPException(
+            status_code=409, detail=f"action already {record['status']}"
+        )
+    action = get_action(record["action_key"])
+    if action is None:
+        raise HTTPException(status_code=422, detail="action no longer in catalog")
+
+    # Re-validate the master switch + allowlist (they may have changed since
+    # the proposal was staged).
+    if not settings.writes_enabled:
+        raise HTTPException(status_code=403, detail="job write-actions are disabled")
+    if not is_action_allowed(record["action_key"], parse_allowlist(settings.writes_allowlist)):
+        raise HTTPException(status_code=403, detail="action is not enabled by the allowlist")
+    # Role gate: operators may approve A/B; destructive (Tier C) needs admin.
+    if not can_approve(account["role"], action):
+        raise HTTPException(
+            status_code=403, detail=f"{action.label} requires an admin to approve"
+        )
+    # Destructive actions need the explicit second confirmation.
+    if action.destructive and not req.confirm_destructive:
+        raise HTTPException(
+            status_code=400,
+            detail="destructive action requires confirm_destructive=true",
+        )
+
+    try:
+        result = adapter.send_job_event(
+            record["action_key"], record["target"], record["params"]
+        )
+    except AdapterError as e:
+        return action_store.mark_failed(action_id, account["username"], str(e))
+    return action_store.mark_executed(action_id, account["username"], result)
+
+
+@app.post("/actions/{action_id}/reject")
+def reject_action(action_id: str, account: dict = Depends(current_account)):
+    """Decline a proposed action. Always safe, so any signed-in user may do it."""
+    try:
+        return action_store.mark_rejected(action_id, account["username"])
+    except ActionNotFound:
+        raise HTTPException(status_code=404, detail="unknown action")
+    except ActionStateError as e:
+        raise HTTPException(status_code=409, detail=str(e))

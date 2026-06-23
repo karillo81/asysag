@@ -143,6 +143,18 @@ class Settings:
         default_factory=lambda: _str_to_bool(os.getenv("CAPTURE_TRAINING_DATA"), False)
     )
 
+    # Job write-actions (start/hold/kill/...). Master switch, default OFF =
+    # read-only. When on, non-destructive actions are enabled; destructive ones
+    # must additionally be named in WRITES_ALLOWLIST. Every write is still
+    # human-confirmed. See adapters/job_actions.py and action_store.py.
+    writes_enabled: bool = field(
+        default_factory=lambda: _str_to_bool(os.getenv("WRITES_ENABLED"), False)
+    )
+    # Comma-separated action keys. Empty = all non-destructive allowed,
+    # destructive blocked. List keys (e.g. "delete_job,stop_demon") to enable
+    # destructive actions or to restrict to an explicit subset.
+    writes_allowlist: str | None = os.getenv("WRITES_ALLOWLIST")
+
 
 settings = Settings()
 

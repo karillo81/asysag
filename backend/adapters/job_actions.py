@@ -122,3 +122,33 @@ def actions_for_role(role: str) -> list[JobAction]:
     if role == "admin":
         return list(ACTIONS.values())
     return [a for a in ACTIONS.values() if a.min_role != "admin"]
+
+
+def parse_allowlist(raw: str | None) -> frozenset[str]:
+    """Parse the comma-separated WRITES_ALLOWLIST setting into a set of keys."""
+    if not raw:
+        return frozenset()
+    return frozenset(k.strip() for k in raw.split(",") if k.strip())
+
+
+def is_action_allowed(key: str, allowlist: frozenset[str]) -> bool:
+    """Whether an action may be proposed/executed under the current allowlist.
+
+    Safety default: an empty allowlist permits every NON-destructive action but
+    blocks all destructive ones — destructive actions must be opted in by name.
+    A non-empty allowlist permits exactly the listed keys (destructive or not).
+    The WRITES_ENABLED master switch is checked separately by callers.
+    """
+    action = get_action(key)
+    if action is None:
+        return False
+    if action.destructive:
+        return key in allowlist
+    return (not allowlist) or key in allowlist
+
+
+def can_approve(role: str, action: JobAction) -> bool:
+    """Whether a role may approve/execute the action (admin is a superset)."""
+    if action.min_role == "admin":
+        return role == "admin"
+    return role in ("operator", "admin")

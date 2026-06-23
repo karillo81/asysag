@@ -74,6 +74,12 @@ SPECS: tuple[Spec, ...] = (
     Spec("CAPTURE_TRAINING_DATA", "Capture LLM calls for training", "Behaviour",
          kind="bool", attr="capture_training_data",
          help="Log every (redacted) LLM request/response to the distillation dataset"),
+    # -- Write actions --------------------------------------------------
+    Spec("WRITES_ENABLED", "Enable job write-actions", "Writes", kind="bool",
+         attr="writes_enabled",
+         help="Master switch. OFF = read-only. ON enables non-destructive actions; destructive still need the allowlist. Every write is human-confirmed."),
+    Spec("WRITES_ALLOWLIST", "Action allowlist", "Writes", attr="writes_allowlist",
+         help="Comma-separated action keys. Empty = all non-destructive allowed, destructive blocked. e.g. delete_job,stop_demon to enable those."),
 )
 
 _BY_KEY = {s.key: s for s in SPECS}

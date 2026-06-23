@@ -41,6 +41,12 @@ SYSTEM_PROMPT = (
     "  the operator can read the full doc if they want more.\n"
     "- If a tool returns {\"error\": \"unknown_job\"}, say so plainly and suggest "
     "  list_jobs to find the right name.\n"
+    "- Write actions: if the user asks to CHANGE a job (start, hold, ice, kill, "
+    "  cancel, restart, change status, etc.) and the propose_job_action tool is "
+    "  available, call it. It only PROPOSES — it never executes. Tell the user "
+    "  the action is proposed and awaiting their confirmation in the UI; never "
+    "  say you started/killed/changed anything yourself. If the tool isn't "
+    "  available, say write actions are disabled. Never invent an action key.\n"
     "- Language is presentation, not topic. By default, write your whole reply in "
     "  the SAME language the user's latest message is written in — if they ask in "
     "  Czech, answer in Czech; in German, answer in German. If they explicitly ask "
@@ -67,6 +73,7 @@ def build_agent(
     adapter: AutoSysAdapter,
     memory: Memory,
     knowledge_base: KnowledgeBase,
+    action_store=None,
 ):
     """Construct the LangGraph ReAct agent bound to the given backends."""
     model_kwargs: dict = {
@@ -88,7 +95,7 @@ def build_agent(
         logger.info("capture: training-data capture ON -> %s", dataset)
 
     model = ChatLiteLLM(**model_kwargs)
-    tools = make_tools(adapter, memory, knowledge_base)
+    tools = make_tools(adapter, memory, knowledge_base, action_store)
     return create_react_agent(model, tools)
 
 

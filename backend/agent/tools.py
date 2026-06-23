@@ -10,8 +10,16 @@ from typing import Annotated, Any
 from langchain_core.tools import BaseTool, tool
 
 from adapters import AutoSysAdapter, JobNotFound
+from adapters.job_actions import (
+    ACTIONS,
+    get_action,
+    is_action_allowed,
+    parse_allowlist,
+)
+from config import settings
 from rag import KnowledgeBase
 
+from .actor_context import current_actor
 from .memory import Memory
 from .redactor import redact
 
@@ -32,8 +40,14 @@ def make_tools(
     adapter: AutoSysAdapter,
     memory: Memory,
     knowledge_base: KnowledgeBase,
+    action_store: Any | None = None,
 ) -> list[BaseTool]:
-    """Build the LangChain tool list bound to specific dependencies."""
+    """Build the LangChain tool list bound to specific dependencies.
+
+    The write-action tool (propose_job_action) is only included when
+    settings.writes_enabled AND an action_store is supplied — read-only
+    deployments never even advertise the capability.
+    """
 
     @tool
     def get_job_status(job_name: Annotated[str, "AutoSys job or box name, e.g. etl_load_facts"]) -> str:
@@ -145,7 +159,64 @@ def make_tools(
         except Exception as e:
             return _serialise({"error": str(e)})
 
-    return [
+    @tool
+    def propose_job_action(
+        action: Annotated[str, "Action key, e.g. 'on_hold', 'force_start_job', 'cancel_job'"],
+        target: Annotated[str, "Job name (or machine name for machine_* actions)"],
+        params: Annotated[
+            dict | None,
+            "Extra params some actions need, e.g. {'status':'SUCCESS'} for change_status, "
+            "{'comment':'...'} for comment, {'priority':5} for change_priority",
+        ] = None,
+    ) -> str:
+        """Propose a WRITE action on an AutoSys job for human approval.
+
+        IMPORTANT: this does NOT execute anything. It only stages the action; a
+        human must explicitly confirm it in the UI before it runs. Use it when
+        the user clearly asks to change a job (start, hold, ice, kill, restart,
+        change status, etc.). Never claim the action was performed — report that
+        it has been proposed and is awaiting confirmation. Always confirm the
+        target job exists first (get_job_status) if you're unsure.
+        """
+        act = get_action(action)
+        if act is None:
+            return _serialise({
+                "error": "unknown_action", "action": action,
+                "available_actions": sorted(ACTIONS),
+            })
+        allowlist = parse_allowlist(settings.writes_allowlist)
+        if not is_action_allowed(action, allowlist):
+            return _serialise({
+                "error": "action_not_allowed", "action": action,
+                "message": "This action is not enabled by the current allowlist.",
+            })
+        if act.target == "job":
+            try:
+                adapter.get_job_status(target)
+            except JobNotFound:
+                return _serialise({"error": "unknown_job", "job_name": target})
+        proposal = action_store.propose(
+            action, target,
+            tier=act.tier, destructive=act.destructive,
+            params=params, proposed_by=current_actor(),
+        )
+        return _serialise({
+            "status": "proposed",
+            "action_id": proposal["id"],
+            "action": action,
+            "label": act.label,
+            "target": target,
+            "tier": act.tier,
+            "destructive": act.destructive,
+            "summary": act.summary,
+            "requires_role": act.min_role,
+            "message": (
+                f"Proposed '{act.label}' on '{target}'. Nothing has been executed — "
+                f"a human must confirm it in the UI."
+            ),
+        })
+
+    tools = [
         get_job_status,
         list_jobs,
         get_job_history,
@@ -154,3 +225,6 @@ def make_tools(
         find_similar_incidents,
         search_knowledge_base,
     ]
+    if settings.writes_enabled and action_store is not None:
+        tools.append(propose_job_action)
+    return tools
