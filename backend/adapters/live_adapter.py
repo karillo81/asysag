@@ -26,8 +26,9 @@ if TYPE_CHECKING:
 
 from .autorep_parser import parse_autorep_wide
 from .autosys_client import AutoSysAPIError, AutoSysClient
-from .base import AutoSysAdapter, JobNotFound
+from .base import AdapterError, AutoSysAdapter, JobNotFound
 from .jil_parser import referenced_jobs
+from .job_actions import get_action
 from .status_codes import build_table, translate
 
 logger = logging.getLogger(__name__)
@@ -198,6 +199,37 @@ class LiveAdapter(AutoSysAdapter):
                 downstream.append(other_name)
 
         return {"job": job_name, "upstream": upstream, "downstream": downstream}
+
+    def send_job_event(
+        self, action_key: str, target: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """POST a write event to the AEWS `/AEWS/api/event/<endpoint>` surface.
+
+        MUTATES AUTOSYS. The body carries the target under the field the event
+        expects (jobName / machineName) plus any action params. Returns the
+        endpoint, target, and the AEWS response; raises AdapterError on failure.
+        """
+        action = get_action(action_key)
+        if action is None:
+            raise AdapterError(f"unknown action: {action_key}")
+        body: dict[str, Any] = dict(params or {})
+        if action.target == "job":
+            body["jobName"] = target
+        elif action.target == "machine":
+            # NOTE: confirm the exact machine field name against the live AEWS
+            # before enabling Tier C machine actions in production.
+            body["machineName"] = target
+        # scheduler-wide actions (stop_demon) carry no target field.
+        try:
+            resp = self._client.post_json(f"api/event/{action.endpoint}", json=body)
+        except AutoSysAPIError as e:
+            raise AdapterError(f"{action_key} on {target!r} failed: {e}") from e
+        return {
+            "action": action_key,
+            "endpoint": action.endpoint,
+            "target": target,
+            "response": resp,
+        }
 
     def get_job_log(self, job_name: str, stream: str = "err") -> str:
         if stream not in ("err", "out"):

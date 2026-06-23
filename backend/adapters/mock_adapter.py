@@ -3,7 +3,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from .base import AutoSysAdapter, JobNotFound
+from .base import AdapterError, AutoSysAdapter, JobNotFound
+from .job_actions import get_action
 
 
 DEFAULT_SCENARIO = "etl_failure"
@@ -23,6 +24,9 @@ class MockAdapter(AutoSysAdapter):
     def __init__(self, data_dir: Path, scenario: str = DEFAULT_SCENARIO):
         self._dir = data_dir
         self._scenario = scenario
+        # Records every write action so tests/scenarios can assert on them
+        # without touching a real scheduler.
+        self.sent_events: list[dict[str, Any]] = []
         self._load_all()
 
     @property
@@ -57,6 +61,28 @@ class MockAdapter(AutoSysAdapter):
         """Switch to a different scenario and reload all state from disk."""
         self._scenario = name
         self._load_all()
+
+    def send_job_event(
+        self, action_key: str, target: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Simulate a write action: validate + record it, never touch AutoSys.
+
+        For job-targeted actions the target must be a known job, mirroring how
+        the live adapter would fail on an unknown job.
+        """
+        action = get_action(action_key)
+        if action is None:
+            raise AdapterError(f"unknown action: {action_key}")
+        if action.target == "job":
+            self._require(target)  # raises JobNotFound if unknown
+        record = {
+            "action": action_key,
+            "endpoint": action.endpoint,
+            "target": target,
+            "params": dict(params or {}),
+        }
+        self.sent_events.append(record)
+        return {"status": "ok", "simulated": True, **record}
 
     def _load_path(self, path: Path, default: Any = None) -> Any:
         if not path.exists():

@@ -37,5 +37,18 @@ class AutoSysAdapter(ABC):
         Raise JobNotFound if the job itself is unknown.
         """
 
+    @abstractmethod
+    def send_job_event(
+        self, action_key: str, target: str, params: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Execute a write action (sendevent-style) against AutoSys.
+
+        `action_key` is a key from adapters.job_actions.ACTIONS; `target` is the
+        job/machine name it applies to (ignored for scheduler-wide actions).
+        Returns a result dict. Raises AdapterError on an unknown action or a
+        failed request. THIS MUTATES AUTOSYS — callers must gate it behind the
+        propose -> human-confirm flow.
+        """
+
     def reset(self) -> None:
         """Reinitialise from the underlying data source. Optional; default no-op."""
