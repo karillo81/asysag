@@ -24,6 +24,13 @@ function AppShell() {
 
   const refreshActions = useCallback(() => setActionsBump((b) => b + 1), [])
 
+  // After an action is approved/rejected, refresh the pending list AND the
+  // jobs sidebar — an executed action (hold, start, kill, ...) changes job state.
+  const onActionResolved = useCallback(() => {
+    setActionsBump((b) => b + 1)
+    sidebarRef.current?.refresh()
+  }, [])
+
   useEffect(() => {
     if (!user) return
     apiFetch('/api/health')
@@ -131,7 +138,7 @@ function AppShell() {
           <PendingActions
             reload={actionsBump}
             role={role}
-            onResolved={refreshActions}
+            onResolved={onActionResolved}
           />
           <div className="flex-1 min-h-0">
             <Chat
