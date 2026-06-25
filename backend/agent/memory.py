@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -43,6 +44,11 @@ class Memory:
         self._conn.row_factory = sqlite3.Row
         self._conn.executescript(_SCHEMA)
         self._conn.commit()
+        # The single connection is shared across the FastAPI threadpool (sync
+        # tools run in worker threads). Serialise access so a streamed
+        # investigation can't trigger SQLITE_MISUSE ("bad parameter or other
+        # API misuse") by touching the connection from two threads at once.
+        self._lock = threading.Lock()
         if seed_incidents_path and self._table_empty("incidents"):
             self._seed_incidents(seed_incidents_path)
 
@@ -102,8 +108,9 @@ class Memory:
             + " AND ".join(clauses)
             + " ORDER BY date DESC"
         )
-        cur = self._conn.execute(sql, params)
-        return [dict(r) for r in cur.fetchall()]
+        with self._lock:
+            cur = self._conn.execute(sql, params)
+            return [dict(r) for r in cur.fetchall()]
 
     def close(self) -> None:
         self._conn.close()
